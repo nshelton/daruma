@@ -1,7 +1,14 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+
+import { EventParser, Event} from './EventParser'
 import fs from 'fs'
+
+const root_dir =
+  '/Users/nshelton/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents'
+
+
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
@@ -9,16 +16,25 @@ app.whenReady().then(() => {
   ipcMain.on('ping', () => console.log('pong'))
 
   ipcMain.on('get-file-content', (event) => {
-    // Read the text file
-    const date = '2024-08-24'
-    const filePath = `/Users/nshelton/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/${date}.txt`
-    const fileContent = fs.readFileSync(filePath, 'utf-8')
 
-    const lines = fileContent.split('\n')
-    const linearrays = lines.map((line) => line.split(','))
-    linearrays.forEach((line) => line.unshift(date))
-    console.log(linearrays)
-    event.reply('file-content', linearrays)
+    const all_file_contents = [[]]
+    //const result = new EventParser('2024-08-24').parseEvents()s
+    for (let i = 0; i < 365; i++) {
+      const date = new Date(2024, 0, i + 1)
+      const fname = date.toISOString().split('T')[0]
+
+      const filePath = `${root_dir}/${fname}.txt`
+      if (fs.existsSync(filePath)) {
+        const fileContent = fs.readFileSync(filePath, 'utf-8')
+        const lines = fileContent.split('\n')
+        const rawFileContent = lines.map((line) => line.split(','))
+        rawFileContent.forEach((line) => line.unshift(fname))
+        all_file_contents.push(...rawFileContent)
+      }
+    }
+    const all_events = new EventParser().parseEvents(all_file_contents)
+
+    event.reply('event-list', all_events)
   })
 
   createWindow()

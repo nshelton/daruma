@@ -8,6 +8,7 @@ import { CurrentTimeView } from './CurrentTimeView';
 import { msToWorldPosition } from './dateUtils'
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import turboColors from './ColorSchemes.tsx';
+import Event from '../../main/EventParser.ts'
 
 const ThreeCanvas: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -44,7 +45,6 @@ const ThreeCanvas: React.FC = () => {
     controls.maxDistance = 500
     controls.enableRotate = false
 
-
     // swap left button for pan and right button for rotate
     controls.mouseButtons = {
       LEFT: THREE.MOUSE.PAN,
@@ -54,20 +54,12 @@ const ThreeCanvas: React.FC = () => {
     window.addEventListener('resize', handleResize)
     camera.position.z = 10
 
-
     //draw a really long boxx for timeline that renders on top of everything
     const geometry = new THREE.PlaneGeometry(100000, 0.00005)
     const material = new THREE.MeshBasicMaterial({ color: 0x666666 })
     const timeline = new THREE.Mesh(geometry, material)
     timeline.position.z = 9
     scene.add(timeline)
-
-    // Create a Day with Events
-    // day.addEvent(new Event('Event 1', 0, 1));
-    // day.addEvent(new Event('Event 2', 1, 2));
-    // day.addEvent(new Event('Event 3', 2, 3));
-
-    // get a date object with month, day year
 
     // iterate through days of the year
     for (let i = 0; i < 365; i++) {
@@ -78,25 +70,6 @@ const ThreeCanvas: React.FC = () => {
       scene.add(dayView.object)
     }
 
-    // const date = new Date(2024, 8, 17);
-    // const day = new DayView().;
-    // scene.add(day.object);
-
-    // var current_time = new CurrentTimeView()
-    // scene.add(current_time.object)
-
-    // // Render events on a timeline
-
-    // get file content
-
-    // ...
-
-
-    // const geometry = new THREE.PlaneGeometry(100, 100, 100, 100);
-    // const material = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x888888 });
-    // const cube = new THREE.Mesh(geometry, material);
-    // scene.add(cube);
-
     document.getElementById('stats')?.remove()
     const stats = new Stats()
     stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
@@ -106,16 +79,10 @@ const ThreeCanvas: React.FC = () => {
 
     const triggerLoad = (): void => window.electron.ipcRenderer.send('get-file-content')
 
-    window.electron.ipcRenderer.on('file-content', (event, fileContent) => {
-      console.log(fileContent)
-      fileContent.forEach((line) => {
-        if(line.length < 3) return
-
-        const date = new Date(line[0] + ' ' + line[1])
-
-        // const start = msToWorldPosition(date.getTime())
-        // const end = msToWorldPosition(date.getTime() + 1000 * 60 * 60 * 24)
-        const event = new EventView(date)
+    window.electron.ipcRenderer.on('event-list', (_, eventlist: Event[]) => {
+      console.log(eventlist)
+      eventlist.forEach((e) => {
+        const event = new EventView(e)
         scene.add(event.object)
       })
     })
@@ -123,12 +90,14 @@ const ThreeCanvas: React.FC = () => {
     console.log('loader')
     triggerLoad()
 
+    const current_time = new CurrentTimeView()
+    scene.add(current_time.object)
     const animate = (): void => {
 
       requestAnimationFrame(animate)
       controls.update() // only required if controls.enableDamping or controls.autoRotate are set to true
       renderer.render(scene, camera)
-      // current_time?.update();
+      current_time?.update();
       stats.update()
     }
 

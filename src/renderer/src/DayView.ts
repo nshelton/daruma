@@ -36,7 +36,6 @@ export class DayView {
 
     const width = this.end - this.start
 
-
     const sunrise = getSunrise(LATITUDE, LONGITUDE, date)
     const next_day = new Date(date.getTime() + MS_IN_A_DAY)
     const sunset = getSunset(LATITUDE, LONGITUDE, next_day)
@@ -84,7 +83,7 @@ export class DayView {
     const texture = new THREE.CanvasTexture(canvas)
     const material = new THREE.MeshBasicMaterial({ map: texture })
     const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.01), material)
-    textMesh.position.x = this.start
+    textMesh.position.x = (this.start + this.end) / 2
     textMesh.position.y = width/2
     textMesh.position.z = 0.001
     textMesh.scale.set(0.02, 0.1, 0.1)
