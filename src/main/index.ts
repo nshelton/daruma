@@ -6,21 +6,20 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
-  // app.on('browser-window-created', (_, window) => {
-  //   optimizer.watchWindowShortcuts(window)
-  // })
-
-  // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  ipcMain.on('get-file-content', (event) => {
+    // Read the text file
+    const date = '2024-08-24'
+    const filePath = `/Users/nshelton/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/${date}.txt`
+    const fileContent = fs.readFileSync(filePath, 'utf-8')
 
-  // ipcMain.on('get-file-content', (event) => {
-  //   // Read the text file
-  //   // const filePath =
-  //     // '/Users/nshelton/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/2024-08-17.txt'
-  //   // const fileContent = fs.readFileSync(filePath, 'utf-8')
-  //   event.reply('file-content', "fileContentssss")
-  // })
+    const lines = fileContent.split('\n')
+    const linearrays = lines.map((line) => line.split(','))
+    linearrays.forEach((line) => line.unshift(date))
+    console.log(linearrays)
+    event.reply('file-content', linearrays)
+  })
 
   createWindow()
 

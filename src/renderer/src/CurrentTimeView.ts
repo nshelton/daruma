@@ -1,6 +1,6 @@
 // Day.ts
 import { Wireframe } from 'three/examples/jsm/Addons.js'
-import { Event } from './Event'
+import { Event } from './EventView'
 import * as THREE from 'three'
 import { msToWorldPosition } from './dateUtils'
 

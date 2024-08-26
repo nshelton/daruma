@@ -1,6 +1,6 @@
 // Day.ts
 import { Wireframe } from 'three/examples/jsm/Addons.js'
-import { Event } from './Event'
+import { Event } from './EventView'
 import * as THREE from 'three'
 import { msToWorldPosition, MS_IN_A_DAY, LATITUDE, LONGITUDE } from './dateUtils'
 import { getSunrise, getSunset } from 'sunrise-sunset-js';
@@ -72,6 +72,23 @@ export class DayView {
       hourTicks.add(tick)
     }
     this.object.add(hourTicks)
+
+
+    const text = date.toDateString()
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (context === null) throw new Error('Could not get 2d context')
+    context.font = '30px Arial'
+    context.fillStyle = 'white'
+    context.fillText(text, 0, 50)
+    const texture = new THREE.CanvasTexture(canvas)
+    const material = new THREE.MeshBasicMaterial({ map: texture })
+    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.01), material)
+    textMesh.position.x = this.start
+    textMesh.position.y = width/2
+    textMesh.position.z = 0.001
+    textMesh.scale.set(0.02, 0.1, 0.1)
+    this.object.add(textMesh)
   }
 
   setColor(color: number[]): void {

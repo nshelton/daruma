@@ -3,26 +3,14 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DayView } from './DayView';
-import { Event } from './Event';
+import { EventView } from './EventView';
 import { CurrentTimeView } from './CurrentTimeView';
 import { msToWorldPosition } from './dateUtils'
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-import { stat } from 'fs';
 import turboColors from './ColorSchemes.tsx';
-import { ipcRenderer } from 'electron'
 
 const ThreeCanvas: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null)
-
-
-
-  // call ipc on load to get file content
-  useEffect(() => {
-    ipcRenderer.send('get-file-content')
-    ipcRenderer.on('file-content', (event, fileContent) => {
-      console.log(fileContent)
-    })
-  }, [])
 
 
   useEffect(() => {
@@ -30,6 +18,7 @@ const ThreeCanvas: React.FC = () => {
     if (!mount) return;
 
     const initial_zoom = 100000;
+
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera()
 
@@ -68,7 +57,7 @@ const ThreeCanvas: React.FC = () => {
 
     //draw a really long boxx for timeline that renders on top of everything
     const geometry = new THREE.PlaneGeometry(100000, 0.00005)
-    const material = new THREE.MeshBasicMaterial({  color: 0x666666 })
+    const material = new THREE.MeshBasicMaterial({ color: 0x666666 })
     const timeline = new THREE.Mesh(geometry, material)
     timeline.position.z = 9
     scene.add(timeline)
@@ -115,6 +104,24 @@ const ThreeCanvas: React.FC = () => {
     stat_dom_object.id = 'stats'
     document.getElementById('main-canvas')?.appendChild(stat_dom_object)
 
+    const triggerLoad = (): void => window.electron.ipcRenderer.send('get-file-content')
+
+    window.electron.ipcRenderer.on('file-content', (event, fileContent) => {
+      console.log(fileContent)
+      fileContent.forEach((line) => {
+        if(line.length < 3) return
+
+        const date = new Date(line[0] + ' ' + line[1])
+
+        // const start = msToWorldPosition(date.getTime())
+        // const end = msToWorldPosition(date.getTime() + 1000 * 60 * 60 * 24)
+        const event = new EventView(date)
+        scene.add(event.object)
+      })
+    })
+
+    console.log('loader')
+    triggerLoad()
 
     const animate = (): void => {
 
