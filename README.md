@@ -1,12 +1,36 @@
 # daruma
 
-An Electron application with React and TypeScript
+Visualize timeseries data, location history, events
 
-## Recommended IDE Setup
+TODOS:
+[] wifi event doesn't work well
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+[] Granular location logging using OneTracks or Arc App
+  - convertor sceipts to put into standard schema
 
-## Project Setup
+[] server or local db with standardized event schema
+
+[] Week layout, month layout, day layout
+  - view settings menu
+  - layer visibility toggle
+
+[] serialized settings struct
+
+[] info panel
+  - clickable events
+
+[] more granular time info when zoom in
+  - remove objects from scene when zoom in (for perf ?)
+  - can likely handle a lot, but just put an upper bound on it
+
+
+[] time series renderer
+  - automatic simplification based on zoom level
+  - temperature / humidity?
+  - moon phase, sun altitude
+  - create scripts on server that insert data into db
+
+## Project
 
 ### Install
 
