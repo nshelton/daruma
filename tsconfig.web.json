@@ -12,7 +12,8 @@
     "baseUrl": ".",
     "paths": {
       "@renderer/*": [
-        "src/renderer/src/*"
+        "src/renderer/src/*",
+        "src/main/EventParser.ts"
       ]
     }
   }

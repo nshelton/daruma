@@ -1,13 +1,11 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-
-import { EventParser, Event} from './EventParser'
+import { electronApp, is } from '@electron-toolkit/utils'
+import { EventParser } from './EventParser'
 import fs from 'fs'
 
 const root_dir =
   '/Users/nshelton/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents'
-
 
 app.whenReady().then(() => {
   // Set app user model id for windows
@@ -16,8 +14,7 @@ app.whenReady().then(() => {
   ipcMain.on('ping', () => console.log('pong'))
 
   ipcMain.on('get-file-content', (event) => {
-
-    const all_file_contents = [[]]
+    const all_file_contents: string[][] = [[]]
     //const result = new EventParser('2024-08-24').parseEvents()s
     for (let i = 0; i < 365; i++) {
       const date = new Date(2024, 0, i + 1)

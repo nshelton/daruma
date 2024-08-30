@@ -1,7 +1,7 @@
 // Day.ts
 import * as THREE from 'three'
-import { msToWorldPosition } from './dateUtils'
-import Event from '../../main/EventParser.ts'
+import { Layout } from './dateUtils'
+import { Event } from '../../main/EventParser'
 
 export class EventView {
   object: THREE.Object3D
@@ -9,7 +9,7 @@ export class EventView {
   end: Date
   height: number
   type: string
-  // width = msToWorldPosition(600000000) // 1 minute wide
+  // width = Layout.msToWorldPosition(600000000) // 1 minute wide
 
   private getColorForEvent(type: string): number {
     console.log(type)
@@ -44,10 +44,10 @@ export class EventView {
   }
 
   private makePlane(startPos: Date, endPos: Date, height: number): THREE.Mesh {
-    const start = msToWorldPosition(startPos.getTime())
-    const end = msToWorldPosition(endPos.getTime())
+    const start: THREE.Vector3 = Layout.DateToPos(startPos)
+    const end: THREE.Vector3 = Layout.DateToPos(endPos)
 
-    const w = end - start
+    const w = end.x - start.x
     const geometry = new THREE.PlaneGeometry(w * 0.99, height)
 
     const plane_mesh = new THREE.Mesh(
@@ -56,10 +56,11 @@ export class EventView {
         color: this.getColorForEvent(this.type)
       })
     )
-    plane_mesh.position.x = (start + end) / 2
-    plane_mesh.position.y = this.getYPosForEvent(this.type)
+    plane_mesh.position.copy(start)
+    plane_mesh.position.add(end).divideScalar(2)
+    plane_mesh.position.y += this.getYPosForEvent(this.type)
     plane_mesh.position.z = 0.5
-
+    console.log(plane_mesh.position)
     return plane_mesh
   }
 

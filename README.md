@@ -2,13 +2,16 @@
 
 Visualize timeseries data, location history, events
 
+
+
 TODOS:
+[] implement server or local db with standardized event schema
+
 [] wifi event doesn't work well
 
 [] Granular location logging using OneTracks or Arc App
   - convertor sceipts to put into standard schema
 
-[] server or local db with standardized event schema
 
 [] Week layout, month layout, day layout
   - view settings menu
@@ -23,6 +26,7 @@ TODOS:
   - remove objects from scene when zoom in (for perf ?)
   - can likely handle a lot, but just put an upper bound on it
 
+[] google photos API
 
 [] time series renderer
   - automatic simplification based on zoom level

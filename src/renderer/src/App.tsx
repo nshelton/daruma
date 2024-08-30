@@ -1,6 +1,6 @@
-import Versions from './components/Versions'
-import ThreeCanvas from './ThreeCanvas';
-import React from 'react';
+// import Versions from './components/Versions'
+import ThreeCanvas from './ThreeCanvas'
+// import React from 'react';
 
 function App(): JSX.Element {
   // const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
@@ -12,4 +12,4 @@ function App(): JSX.Element {
   );
 }
 
-export default App;
+export default App

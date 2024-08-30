@@ -1,31 +1,30 @@
 // ThreeCanvas.tsx
-import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { DayView } from './DayView';
-import { EventView } from './EventView';
-import { CurrentTimeView } from './CurrentTimeView';
-import { msToWorldPosition } from './dateUtils'
-import Stats from 'three/examples/jsm/libs/stats.module.js';
-import turboColors from './ColorSchemes.tsx';
-import Event from '../../main/EventParser.ts'
+import React, { useEffect, useRef } from 'react'
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { DayView } from './DayView'
+import { EventView } from './EventView'
+import { CurrentTimeView } from './CurrentTimeView'
+import Stats from 'three/examples/jsm/libs/stats.module.js'
+import turboColors from './ColorSchemes'
+// import Event from '../../main/EventParser.ts'
 
 const ThreeCanvas: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null)
 
 
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
+    const mount = mountRef.current
+    if (!mount) return
 
-    const initial_zoom = 100000;
+    const initial_zoom = 100000
 
-    const scene = new THREE.Scene();
+    const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera()
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    mount.appendChild(renderer.domElement);
+    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    mount.appendChild(renderer.domElement)
 
     const handleResize = (): void => {
       renderer.setSize(window.innerWidth, window.innerHeight)
@@ -37,9 +36,9 @@ const ThreeCanvas: React.FC = () => {
     }
 
     handleResize()
-    const controls = new OrbitControls(camera, renderer.domElement);
-    // controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
-    // controls.dampingFactor = 0.25;
+    const controls = new OrbitControls(camera, renderer.domElement)
+    // controls.enableDamping = true // an animation loop is required when either damping or auto-rotation are enabled
+    // controls.dampingFactor = 0.25
 
     controls.minDistance = 1
     controls.maxDistance = 500
@@ -97,7 +96,7 @@ const ThreeCanvas: React.FC = () => {
       requestAnimationFrame(animate)
       controls.update() // only required if controls.enableDamping or controls.autoRotate are set to true
       renderer.render(scene, camera)
-      current_time?.update();
+      current_time?.update()
       stats.update()
     }
 
@@ -108,7 +107,7 @@ const ThreeCanvas: React.FC = () => {
     }
   }, [])
 
-  return <div ref={mountRef} />;
-};
+  return <div ref={mountRef} />
+}
 
-export default ThreeCanvas;
+export default ThreeCanvas
