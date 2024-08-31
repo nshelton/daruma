@@ -1,29 +1,21 @@
-import { useState } from 'react'
-import './InfoPanel.css'
+import React from 'react'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
-function InfoPanel(): JSX.Element {
-  const [isVisible, setIsVisible] = useState(true)
+interface InfoPanelProps {
+  onClose: () => void;
+  message: string;
+}
 
-  const handleClose = (): void => {
-    setIsVisible(false)
-  };
-
-  if (!isVisible) {
-    return <div />
-  }
-
+function InfoPanel({ onClose, message }: InfoPanelProps): JSX.Element {
   return (
     <div id="info-panel">
-      <button className="btn btn-primary" onClick={handleClose}>
-        <i class="bi bi-x"></i>
-
+      <button className="btn btn-primary" onClick={onClose}>
+        <i className="bi bi-x"></i>
       </button>
-
       <h2>Information Panel</h2>
-      <p>This is the info panel content.</p>
-      <div id="info-panel-content"></div>
-    </div >
+      <p>{message}</p>
+    </div>
   );
 }
-export default InfoPanel;
+
+export default InfoPanel

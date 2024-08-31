@@ -6,16 +6,18 @@ import { DayView } from './DayView'
 import { EventView } from './EventView'
 import { CurrentTimeView } from './CurrentTimeView'
 import Stats from 'three/examples/jsm/libs/stats.module.js'
-import turboColors from './ColorSchemes'
+import turboColors from '../ColorSchemes'
 // import Event from '../../main/EventParser.ts'
 
-const ThreeCanvas: React.FC = () => {
+const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
   const mountRef = useRef<HTMLDivElement>(null)
 
 
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
+
+    infoPanelCallback('ThreeCanvas has been initialized')
 
     const initial_zoom = 100000
 
@@ -105,7 +107,9 @@ const ThreeCanvas: React.FC = () => {
     return (): void => {
       mount.removeChild(renderer.domElement)
     }
-  }, [])
+
+
+  }, [infoPanelCallback])
 
   return <div ref={mountRef} />
 }

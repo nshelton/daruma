@@ -1,16 +1,25 @@
-// import Versions from './components/Versions'
-import ThreeCanvas from './ThreeCanvas'
-import InfoPanel from './components/InfoPanel';
+import React, { useState } from 'react'
+import InfoPanel from './components/InfoPanel'
+import NavPanel from './components/NavPanel'
+import ThreeCanvas from './timelineView/ThreeCanvas'
+import './main.css'
 
 function App(): JSX.Element {
-  // const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const [isInfoPanelVisible, setIsInfoPanelVisible] = useState(false)
+  const [infoMessage, setInfoMessage] = useState('')
+
+  const handleToggleInfoPanel = (show: boolean, message: string = '') => {
+    setInfoMessage(message)
+    setIsInfoPanelVisible(show)
+  }
 
   return (
-    <div id="main-canvas">
-      <ThreeCanvas />
-      <InfoPanel />
+    <div>
+      <NavPanel onShowInfoPanel={(message) => handleToggleInfoPanel(true, message)} />
+      <ThreeCanvas infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} />
+      {isInfoPanelVisible && <InfoPanel onToggle={handleToggleInfoPanel} message={infoMessage} />}
     </div>
-  );
+  )
 }
 
 export default App
