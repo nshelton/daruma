@@ -33,7 +33,7 @@ export class DayView {
     const width = end.x - start.x
 
     const sunrise = getSunrise(LATITUDE, LONGITUDE, date)
-    const next_day = new Date(date.getTime())
+    const next_day = new Date(date.getTime() + Layout.MS_IN_A_DAY)
     const sunset = getSunset(LATITUDE, LONGITUDE, next_day)
 
     //create ball at sunrise and sunset
@@ -44,6 +44,7 @@ export class DayView {
     this.object.add(this.frame)
 
     const daylight = this.makePlane(sunrisePos, sunsetPos, width)
+    // daylight.position.z = 0.1
     daylight.material.transparent = true
     daylight.material.opacity = 0.5
     daylight.material.color.setRGB(1, 1, 1)
@@ -87,8 +88,13 @@ export class DayView {
     texture.filter = THREE.NearestFilter
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 1 })
     const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.01), material)
-    textMesh.position.x = (this.start + this.end) / 2
-    textMesh.position.y = width / 2 + 0.001
+
+    textMesh.position.copy(start)
+    textMesh.position.add(end).divideScalar(2)
+
+
+    // textMesh.position.x = (this.start + this.end) / 2
+    textMesh.position.y += width / 2 + 0.001
     textMesh.position.z = 0.001
     textMesh.scale.multiplyScalar(0.06)
     this.object.add(textMesh)

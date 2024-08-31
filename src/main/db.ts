@@ -1,35 +1,39 @@
-// // db.ts
-// import sqlite3 from 'sqlite3'
-// import { open } from 'sqlite'
+import sqlite3 from 'sqlite3'
 
-// async function initializeDatabase(): Promise<sqlite3.Database> {
-//   const db = await open({
-//     filename: './database.db',
-//     driver: sqlite3.Database
-//   })
+// Open the database connection
+const db = new sqlite3.Database('parser/events.db')
 
-//   await db.exec(`
-//     CREATE TABLE IF NOT EXISTS events (
-//       id INTEGER PRIMARY KEY AUTOINCREMENT,
-//       name TEXT,
-//       start TEXT,
-//       end TEXT,
-//       eventType TEXT
-//     )
-//   `)
+// Define a function to retrieve all events from the database
+function getAllEvents(callback: (err: Error | null, events: Event[]) => void): void {
+  // Define the SQL query
+  const query = 'SELECT * FROM events'
 
+  // Execute the query
+  db.all<Event>(query, (err, rows) => {
+    if (err) {
+      callback(err, [])
+      return
+    }
 
-//   await db.exec(`
-//     CREATE TABLE IF NOT EXISTS timeseries (
-//       id INTEGER PRIMARY KEY AUTOINCREMENT,
-//       time TEXT,
-//       value TEXT,
-//       name TEXT,
-//       seriesType TEXT
-//     )
-//   `)
+    // Process the rows
+    const events: Event[] = rows.map(row => ({
+      name: row.name,
+      start: new Date(row.start),
+      end: new Date(row.end),
+      eventType: row.eventType
+    }));
 
-//   return db
-// }
+    callback(null, events)
+  });
+}
 
-// export default initializeDatabase
+// Export the function
+export { getAllEvents }
+interface Event {
+  name: string
+  start: Date
+  end: Date
+  eventType: string
+}
+
+export type { Event }

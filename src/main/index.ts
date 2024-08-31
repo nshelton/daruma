@@ -1,11 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
-import { EventParser } from './EventParser'
-import fs from 'fs'
-
-const root_dir =
-  '/Users/nshelton/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents'
+import { getAllEvents } from './db'
 
 app.whenReady().then(() => {
   // Set app user model id for windows
@@ -14,24 +10,13 @@ app.whenReady().then(() => {
   ipcMain.on('ping', () => console.log('pong'))
 
   ipcMain.on('get-file-content', (event) => {
-    const all_file_contents: string[][] = [[]]
-    //const result = new EventParser('2024-08-24').parseEvents()s
-    for (let i = 0; i < 365; i++) {
-      const date = new Date(2024, 0, i + 1)
-      const fname = date.toISOString().split('T')[0]
+    console.log('get-file-content')
 
-      const filePath = `${root_dir}/${fname}.txt`
-      if (fs.existsSync(filePath)) {
-        const fileContent = fs.readFileSync(filePath, 'utf-8')
-        const lines = fileContent.split('\n')
-        const rawFileContent = lines.map((line) => line.split(','))
-        rawFileContent.forEach((line) => line.unshift(fname))
-        all_file_contents.push(...rawFileContent)
-      }
-    }
-    const all_events = new EventParser().parseEvents(all_file_contents)
+    getAllEvents((err, all_events) => {
 
-    event.reply('event-list', all_events)
+      console.log(all_events)
+      event.reply('event-list', all_events)
+    })
   })
 
   createWindow()
