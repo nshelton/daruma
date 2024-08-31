@@ -1,0 +1,38 @@
+@import '@fontsource/ibm-plex-mono';
+
+* {
+  font-family: 'IBM Plex Mono', sans-serif;
+
+}
+body {
+  margin: 0;
+  padding: 0;
+  background-color: rgba(0, 0, 0, 1);
+}
+
+button {
+  font-size: 30px;
+}
+
+#info-panel
+{
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border-radius: 8px;
+  /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); */
+  position: absolute;
+  height: 100%;
+  width: 30%;
+  right: 0;
+  color: rgb(255,255,255);
+  top: 0;
+}
+
+#info-panel h2 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+#info-panel p {
+  color: #666;
+}

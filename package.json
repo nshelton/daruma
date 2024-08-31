@@ -23,6 +23,8 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
+    "@fontsource/ibm-plex-mono": "^5.0.14",
+    "bootstrap-icons": "^1.11.3",
     "electron-updater": "^6.1.7",
     "sqlite3": "^5.1.7",
     "sunrise-sunset-js": "^2.2.1",

@@ -1,6 +1,6 @@
 // import Versions from './components/Versions'
 import ThreeCanvas from './ThreeCanvas'
-// import React from 'react';
+import InfoPanel from './components/InfoPanel';
 
 function App(): JSX.Element {
   // const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
@@ -8,6 +8,7 @@ function App(): JSX.Element {
   return (
     <div id="main-canvas">
       <ThreeCanvas />
+      <InfoPanel />
     </div>
   );
 }
