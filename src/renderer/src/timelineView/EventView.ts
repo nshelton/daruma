@@ -7,7 +7,6 @@ export class EventView {
   object: THREE.Object3D
   start: Date
   end: Date
-  height: number
   type: string
   selected: boolean = false
   hovered: boolean = false
@@ -65,47 +64,16 @@ export class EventView {
   private getYPosForEvent(type: string): number {
     switch (type) {
       case 'charging':
-        return 0.001
+        return 0.000
       case 'heidi':
-        return 0.0025
+        return 0.0001
       case 'home':
-        return 0.0015
+        return 0.0002
       case 'wifi':
-        return 0.002
+        return 0.0003
       default:
         return 0
     }
-  }
-
-  private makePlane(start: Date, end: Date): THREE.Mesh {
-    const startPos = Layout.DateToPos(start)
-    const endPos = Layout.DateToPos(end)
-    let w = Math.abs(endPos.x - startPos.x)
-    let h = Math.abs(endPos.y - startPos.y)
-
-    //check if ends on the next day and create two boxes
-
-    if (this.direction === 'updown') {
-      w = Layout.thickness * 0.3
-    } else if (this.direction === 'leftright') {
-      h = Layout.thickness
-    }
-    const geometry = new THREE.PlaneGeometry(w * 0.99, h * 0.99)
-    const plane_mesh = new THREE.Mesh(
-      geometry,
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(this.color[0], this.color[1], this.color[2]),
-        transparent: true,
-        opacity: 0.5,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        depthTest: false
-      })
-    )
-    plane_mesh.position.copy(startPos)
-    plane_mesh.position.add(endPos).divideScalar(2)
-    // plane_mesh.position.x += Layout.thickness * 0.5
-    return plane_mesh
   }
 
   constructor(event: Event) {
@@ -116,8 +84,21 @@ export class EventView {
     this.start = event.start
     this.end = event.end
     this.type = event.eventType
-    const box = this.makePlane(this.start, this.end, this.height)
-    this.object.add(box)
+
+    this.material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(this.color[0], this.color[1], this.color[2]),
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending
+
+      })
+    const box = Layout.CreatePlane(this.start, this.end, this.material).forEach((block: THREE.Mesh) => {
+      block.scale.x *= 0.5
+      this.object.add(block)
+    })
 
   }
 }

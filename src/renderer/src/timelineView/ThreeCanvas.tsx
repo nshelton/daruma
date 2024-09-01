@@ -72,6 +72,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     document.getElementById('stats')?.remove()
     const stats = new Stats()
+
     stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
     const stat_dom_object = stats.dom
     stat_dom_object.id = 'stats'
@@ -93,7 +94,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     console.log('loader')
     triggerLoad()
 
-    let current_selected: EventView = null
+    let current_selected: EventView | undefined = undefined
 
     const onDocumentMouseDown = (event: MouseEvent): void => {
       event.preventDefault()

@@ -14,7 +14,7 @@ function App(): JSX.Element {
   }
 
   return (
-    <div>
+    <div id="main-canvas">
       <NavPanel onShowInfoPanel={(message) => handleToggleInfoPanel(true, message)} />
       <ThreeCanvas infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} />
       {isInfoPanelVisible && <InfoPanel onToggle={handleToggleInfoPanel} message={infoMessage} />}
