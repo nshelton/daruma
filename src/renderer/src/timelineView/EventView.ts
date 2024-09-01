@@ -76,25 +76,27 @@ export class EventView {
     }
   }
 
-  private makePlane(startPos: Date, endPos: Date, height: number): THREE.Mesh {
+  private makePlane(startPos: Date, endPos: Date, thickness: number): THREE.Mesh {
     this.color = this.getColorForEvent(this.type)
     this.selected_color = this.color.map((c) => c * 1.5 + 0.2)
     this.hilight_color = this.color.map((c) => c * 1.2 + 0.5)
 
-    console.log(this.color, this.hilight_color, this.selected_color)
-
     const start: THREE.Vector3 = Layout.DateToPos(startPos)
     const end: THREE.Vector3 = Layout.DateToPos(endPos)
 
-    const w = end.x - start.x
-    const geometry = new THREE.PlaneGeometry(w * 0.99, height)
+    let w = Math.abs(end.x - start.x)
+    let h = Math.abs(end.y - start.y)
 
-    const plane_mesh = new THREE.Mesh(
-      geometry,
-      new THREE.MeshBasicMaterial({
-        color: this.getColorForEvent(this.type)
-      })
-    )
+    if (w < 0.0000001) {
+      w = thickness
+    }
+
+    if (h < 0.0000001) {
+      h = thickness
+    }
+    const geometry = new THREE.PlaneGeometry(w * 0.99, h * 0.99)
+
+    const plane_mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial())
 
     plane_mesh.position.copy(start)
     plane_mesh.position.add(end).divideScalar(2)
@@ -107,12 +109,16 @@ export class EventView {
     this.object = new THREE.Object3D()
     this.object.viewObject = this
 
+    this.height = 0.0000001
+
     this.start = event.start
     this.end = event.end
     this.type = event.eventType
-    this.height = 0.0005
     const box = this.makePlane(this.start, this.end, this.height)
     this.object.add(box)
+
+    this.setColor(this.color)
+
   }
 }
 

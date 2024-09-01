@@ -93,7 +93,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     console.log('loader')
     triggerLoad()
 
-    var current_selected :EventView = null
+    let current_selected: EventView = null
 
     const onDocumentMouseDown = (event: MouseEvent): void => {
       event.preventDefault()

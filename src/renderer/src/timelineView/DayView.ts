@@ -8,12 +8,19 @@ export class DayView {
   frame: THREE.Object3D
   hourTicks: THREE.Object3D
   dayHeight = Layout.dayHeight
+  direction = 'updown'
   color: number[] = [0.5, 0.5, 0.5]
 
-  private makePlane(startPos: THREE.Vector3, endPos: THREE.Vector3, height: number): THREE.Mesh {
-    const w = endPos.x - startPos.x
-    const geometry = new THREE.PlaneGeometry(w * 0.99, height)
+  private makePlane(startPos: THREE.Vector3, endPos: THREE.Vector3): THREE.Mesh {
+    let w = endPos.x - startPos.x
+    let h = endPos.y - startPos.y
 
+    if (this.direction === 'updown') {
+      w = Layout.thickness
+    } else if (this.direction === 'leftright') {
+      h = Layout.thickness
+    }
+    const geometry = new THREE.PlaneGeometry(w * 0.99, h * 0.99)
     const plane_mesh = new THREE.Mesh(
       geometry,
       new THREE.MeshBasicMaterial({
@@ -22,7 +29,6 @@ export class DayView {
     )
     plane_mesh.position.copy(startPos)
     plane_mesh.position.add(endPos).divideScalar(2)
-
     return plane_mesh
   }
 
@@ -42,38 +48,50 @@ export class DayView {
     const sunrisePos = Layout.DateToPos(sunrise)
     const sunsetPos = Layout.DateToPos(sunset)
 
-    this.frame = this.makePlane(start, end, width)
-    // this.object.add(this.frame)
+    this.frame = this.makePlane(start, end)
+    this.object.add(this.frame)
 
-    const daylight = this.makePlane(sunrisePos, sunsetPos, width)
+    const daylight = this.makePlane(sunrisePos, sunsetPos)
     // daylight.position.z = 0.1
     daylight.material.transparent = true
     daylight.material.opacity = 0.5
     daylight.material.color.setRGB(1, 1, 1)
     this.object.add(daylight)
 
+    //make box
+    // const box = new THREE.Mesh(
+      // new THREE.BoxGeometry(Layout.thickness, Layout.thickness, Layout.thickness),
+      // new THREE.MeshBasicMaterial({ color: 0x00ffff })
+    // )
+    // this.object.add(box)
+
     //create hour ticks
     const hourTicks = new THREE.Object3D()
     for (let i = 0; i < 24; i++) {
-      const hour = i / 24
+      const tickTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), i, 0, 0)
       let tickWidth = 0.000005
 
       if (i % 3 === 0) tickWidth *= 2
       if (i % 6 === 0) tickWidth *= 2
       if (i % 12 === 0) tickWidth *= 2
 
-      const left = start.clone()
-      left.x += hour * width - tickWidth
-      const right = start.clone()
-      right.x += hour * width + tickWidth
+      const middle = Layout.DateToPos(tickTime)
+      const left = middle.clone()
+      if (this.direction === 'updown') left.y -= tickWidth
+      else if (this.direction === 'leftright') left.x -= tickWidth
 
-      const tick = this.makePlane(left, right, width)
+      const right = middle.clone()
+      if (this.direction === 'updown') right.y += tickWidth
+      else if (this.direction === 'leftright') right.x += tickWidth
+
+      const tick = this.makePlane(left, right)
 
       hourTicks.add(tick)
     }
+
     this.object.add(hourTicks)
 
-    const text = date.toDateString()
+    const text = date.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric' })
     const canvas = document.createElement('canvas')
     canvas.width = 400
     canvas.height = 40
@@ -95,15 +113,12 @@ export class DayView {
     textMesh.position.copy(start)
     textMesh.position.add(end).divideScalar(2)
 
-
     // textMesh.position.x = (this.start + this.end) / 2
     textMesh.position.y += width / 2 + 0.001
     textMesh.position.z = 0.001
     textMesh.scale.multiplyScalar(0.06)
     this.object.add(textMesh)
-
   }
-
 }
 
 export default DayView

@@ -6,7 +6,6 @@ export class CurrentTimeView {
   object: THREE.Object3D
   pos: number = 0
   width: number = 0.0001
-  // width = msToWorldPosition(600000000) // 1 minute wide
   height: number = 1000
 
   constructor() {
@@ -20,6 +19,7 @@ export class CurrentTimeView {
     })
 
     const cursor = new THREE.Mesh(geometry, lineMaterial)
+
     this.object.add(cursor)
   }
 
@@ -27,6 +27,7 @@ export class CurrentTimeView {
     const date = new Date()
     this.pos = Layout.DateToPos(date)
     this.object.position.x = this.pos - this.width / 2
+    this.object.position.z = 0.5
   }
 }
 
