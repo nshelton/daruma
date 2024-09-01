@@ -8,6 +8,7 @@ export class DayView {
   frame: THREE.Object3D
   hourTicks: THREE.Object3D
   dayHeight = Layout.dayHeight
+  color: number[] = [0.5, 0.5, 0.5]
 
   private makePlane(startPos: THREE.Vector3, endPos: THREE.Vector3, height: number): THREE.Mesh {
     const w = endPos.x - startPos.x
@@ -16,7 +17,7 @@ export class DayView {
     const plane_mesh = new THREE.Mesh(
       geometry,
       new THREE.MeshBasicMaterial({
-        color: 0x666666
+        color: new THREE.Color(this.color[0], this.color[1], this.color[2])
       })
     )
     plane_mesh.position.copy(startPos)
@@ -25,7 +26,8 @@ export class DayView {
     return plane_mesh
   }
 
-  constructor(date: Date) {
+  constructor(date: Date, color: number[]) {
+    this.color = color
     this.object = new THREE.Object3D()
     const start = Layout.DateToPos(date)
     const end = Layout.DateToPos(new Date(date.getTime() + Layout.MS_IN_A_DAY))
@@ -41,7 +43,7 @@ export class DayView {
     const sunsetPos = Layout.DateToPos(sunset)
 
     this.frame = this.makePlane(start, end, width)
-    this.object.add(this.frame)
+    // this.object.add(this.frame)
 
     const daylight = this.makePlane(sunrisePos, sunsetPos, width)
     // daylight.position.z = 0.1
@@ -66,14 +68,15 @@ export class DayView {
       right.x += hour * width + tickWidth
 
       const tick = this.makePlane(left, right, width)
+
       hourTicks.add(tick)
     }
     this.object.add(hourTicks)
 
     const text = date.toDateString()
     const canvas = document.createElement('canvas')
-    canvas.width = 100
-    canvas.height = 10
+    canvas.width = 400
+    canvas.height = 40
 
     const context = canvas.getContext('2d')
     if (context === null) throw new Error('Could not get 2d context')
@@ -81,8 +84,8 @@ export class DayView {
     // context.fillRect(0, 0, canvas.width, canvas.height)
 
     context.fillStyle = 'orange'
-    context.font = '10px Arial'
-    context.fillText(text, 0, 10)
+    context.font = '30px IBM Plex Mono'
+    context.fillText(text, 0, 30)
 
     const texture = new THREE.CanvasTexture(canvas)
     texture.filter = THREE.NearestFilter
@@ -98,11 +101,9 @@ export class DayView {
     textMesh.position.z = 0.001
     textMesh.scale.multiplyScalar(0.06)
     this.object.add(textMesh)
+
   }
 
-  setColor(color: number[]): void {
-    this.frame.material.color.setRGB(color[0], color[1], color[2])
-  }
 }
 
 export default DayView

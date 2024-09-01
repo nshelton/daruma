@@ -29,11 +29,3 @@ function getAllEvents(callback: (err: Error | null, events: Event[]) => void): v
 
 // Export the function
 export { getAllEvents }
-interface Event {
-  name: string
-  start: Date
-  end: Date
-  eventType: string
-}
-
-export type { Event }

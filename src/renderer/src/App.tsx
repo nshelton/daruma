@@ -6,7 +6,7 @@ import './main.css'
 
 function App(): JSX.Element {
   const [isInfoPanelVisible, setIsInfoPanelVisible] = useState(false)
-  const [infoMessage, setInfoMessage] = useState('')
+  const [infoMessage, setInfoMessage] = useState({})
 
   const handleToggleInfoPanel = (show: boolean, message: string = '') => {
     setInfoMessage(message)

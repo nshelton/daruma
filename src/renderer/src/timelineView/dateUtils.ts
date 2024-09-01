@@ -11,7 +11,9 @@ class Layout {
 
   static readonly layout = "linear"
 
+
   static DateToPos(date: Date): THREE.Vector3 {
+    const TIME_OFFSET = new Date().getTime()
 
     if (this.layout == 'linear') {
       const ms = date.getTime()
@@ -19,7 +21,7 @@ class Layout {
       const weekOfYear = Math.ceil(
         (date.getTime() - new Date(date.getFullYear(), 0, 1).getTime()) / 604800000
       )
-      return new THREE.Vector3((ms - 1724554994000) / 1e10, 0, 0)
+      return new THREE.Vector3((ms - TIME_OFFSET) / 1e10, 0, 0)
 
 
     } else if (this.layout == "week") {

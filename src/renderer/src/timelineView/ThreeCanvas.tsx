@@ -10,14 +10,14 @@ import turboColors from '../ColorSchemes'
 // import Event from '../../main/EventParser.ts'
 
 const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
-  const mountRef = useRef<HTMLDivElement>(null)
 
+  const mountRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
 
-    infoPanelCallback('ThreeCanvas has been initialized')
+    infoPanelCallback({})
 
     const initial_zoom = 100000
 
@@ -65,9 +65,8 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     // iterate through days of the year
     for (let i = 0; i < 365; i++) {
       const date = new Date(2024, 0, i + 1)
-      const dayView = new DayView(date)
       const index = Math.floor((turboColors.length * i) / 365)
-      dayView.setColor(turboColors[index]) // Apply turbo color scheme
+      const dayView = new DayView(date, turboColors[index])
       scene.add(dayView.object)
     }
 
@@ -79,17 +78,62 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     document.getElementById('main-canvas')?.appendChild(stat_dom_object)
 
     const triggerLoad = (): void => window.electron.ipcRenderer.send('get-file-content')
+    const EventViewToEventData = {}
+    const AllEventViews: EventView[] = []
 
     window.electron.ipcRenderer.on('event-list', (_, eventlist: Event[]) => {
-      console.log(eventlist)
       eventlist.forEach((e) => {
         const event = new EventView(e)
         scene.add(event.object)
+        AllEventViews.push(event)
+        EventViewToEventData[event.object.uuid] = e
       })
     })
 
     console.log('loader')
     triggerLoad()
+
+    var current_selected :EventView = null
+
+    const onDocumentMouseDown = (event: MouseEvent): void => {
+      event.preventDefault()
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+      raycaster.setFromCamera(mouse, camera)
+      const intersects = raycaster.intersectObjects(scene.children, true)
+      if (intersects[0].object.parent.viewObject instanceof EventView) {
+        const clickedView = intersects[0].object.parent.viewObject
+        const this_data = EventViewToEventData[clickedView.object.uuid]
+        infoPanelCallback(this_data)
+        if (clickedView !== current_selected) {
+          current_selected?.unselect()
+        }
+        clickedView.select()
+        current_selected = clickedView
+      }
+    }
+
+    const onDocumentMouseMove = (event: MouseEvent): void => {
+      event.preventDefault()
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+      raycaster.setFromCamera(mouse, camera)
+      const intersects = raycaster.intersectObjects(scene.children, true)
+      if (intersects.length > 0) {
+        console.log(intersects[0].object.viewObject)
+        AllEventViews.forEach((e) => {
+          e.unhilight()
+        })
+        if (intersects[0].object.parent.viewObject instanceof EventView) {
+          intersects[0].object.parent.viewObject.hilight()
+        }
+      }
+    }
+
+    const raycaster = new THREE.Raycaster()
+    const mouse = new THREE.Vector2()
+    renderer.domElement.addEventListener('click', onDocumentMouseDown, false)
+    renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false)
 
     const current_time = new CurrentTimeView()
     scene.add(current_time.object)
@@ -109,7 +153,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     }
 
 
-  }, [infoPanelCallback])
+  }, [])
 
   return <div ref={mountRef} />
 }
