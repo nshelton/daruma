@@ -66,13 +66,13 @@ export class EventView {
   private getYPosForEvent(type: string): number {
     switch (type) {
       case 'charging':
-        return 0.0
+        return 0
       case 'heidi':
-        return 0.0001
+        return 1
       case 'home':
-        return 0.0002
+        return 2
       case 'wifi':
-        return 0.0003
+        return 3
       default:
         return 0
     }
@@ -98,7 +98,8 @@ export class EventView {
 
     const box = Layout.CreatePlane(this.start, this.end, this.material).forEach(
       (block: THREE.Mesh) => {
-        block.scale.x *= 0.5
+        block.scale.x *= 0.3
+        block.position.x += this.getYPosForEvent(this.type) * Layout.thickness/10
         this.object.add(block)
       }
     )

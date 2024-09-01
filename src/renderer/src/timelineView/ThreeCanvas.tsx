@@ -7,6 +7,7 @@ import { CurrentTimeView } from './CurrentTimeView'
 import Stats from 'three/examples/jsm/libs/stats.module.js'
 import turboColors from '../ColorSchemes'
 import { IpcRendererEvent } from 'electron'
+import { MouseInteractionManager } from './MouseInteractionManager'
 
 const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -22,10 +23,20 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera()
 
+
+
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(window.innerWidth, window.innerHeight)
 
     mount.appendChild(renderer.domElement)
+
+    const mouseControls = new MouseInteractionManager(
+      camera,
+      scene,
+      renderer,
+      (event: EventView) => {
+        infoPanelCallback(EventViewToEventData[event.object.uuid])
+    })
 
     const handleResize = (): void => {
       renderer.setSize(window.innerWidth, window.innerHeight)
@@ -63,49 +74,9 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     stat_dom_object.id = 'stats'
     document.getElementById('main-canvas')?.appendChild(stat_dom_object)
 
-    const EventViewToEventData: Record<string, any> = {}
+    const EventViewToEventData: Record<string, Event> = {}
     const AllEventViews: EventView[] = []
 
-    let current_selected: EventView | undefined = undefined
-
-    const onDocumentMouseDown = (event: MouseEvent): void => {
-      event.preventDefault()
-      const mouse = new THREE.Vector2(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        -(event.clientY / window.innerHeight) * 2 + 1
-      )
-      const raycaster = new THREE.Raycaster()
-      raycaster.setFromCamera(mouse, camera)
-      const intersects = raycaster.intersectObjects(scene.children, true)
-      if (intersects[0]?.object.parent?.viewObject instanceof EventView) {
-        const clickedView = intersects[0].object.parent.viewObject
-        const this_data = EventViewToEventData[clickedView.object.uuid]
-        infoPanelCallback(this_data)
-        if (clickedView !== current_selected) {
-          current_selected?.unselect()
-        }
-        clickedView.select()
-        current_selected = clickedView
-      }
-    }
-
-    const onDocumentMouseMove = (event: MouseEvent): void => {
-      event.preventDefault()
-      const mouse = new THREE.Vector2(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        -(event.clientY / window.innerHeight) * 2 + 1
-      )
-      const raycaster = new THREE.Raycaster()
-      raycaster.setFromCamera(mouse, camera)
-      const intersects = raycaster.intersectObjects(scene.children, true)
-      AllEventViews.forEach((e) => e.unhilight())
-      if (intersects[0]?.object.parent?.viewObject instanceof EventView) {
-        intersects[0].object.parent.viewObject.hilight()
-      }
-    }
-
-    renderer.domElement.addEventListener('click', onDocumentMouseDown)
-    renderer.domElement.addEventListener('mousemove', onDocumentMouseMove)
 
     const current_time = new CurrentTimeView()
     scene.add(current_time.object)
@@ -129,6 +100,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
         AllEventViews.push(event)
         EventViewToEventData[event.object.uuid] = e
       })
+      mouseControls.setEventViews(AllEventViews)
     }
 
     window.electron.ipcRenderer.on('event-list', handleEventList)
@@ -137,10 +109,9 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     return (): void => {
       window.removeEventListener('resize', handleResize)
 
-      renderer.domElement.removeEventListener('click', onDocumentMouseDown)
-      renderer.domElement.removeEventListener('mousemove', onDocumentMouseMove)
       window.electron.ipcRenderer.removeListener('event-list', handleEventList)
       cancelAnimationFrame(animationFrameId)
+      mouseControls.dispose()
       controls.dispose()
       renderer.dispose()
       renderer.forceContextLoss() // Add this line to discard the active WebGL context
