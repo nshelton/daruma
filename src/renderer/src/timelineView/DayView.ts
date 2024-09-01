@@ -9,56 +9,51 @@ export class DayView {
   direction = 'updown'
   color: number[] = [0.5, 0.5, 0.5]
   frameMaterial = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(0.2, 0.0, 0.9),
-    transparent: true,
-    opacity: 0.5
+    color: new THREE.Color(0.2, 0.0, 0.1)
+    // transparent: true,
+    // opacity: 0.5
   })
 
   daylightMaterial = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(0.2, 0.0, 0.9),
+    color: new THREE.Color(0.2, 0.2, 0.0),
+    blending: THREE.AdditiveBlending,
     transparent: true,
     opacity: 0.5
   })
 
   tickMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
-    blending: THREE.NormalBlending,
+    blending: THREE.AdditiveBlending,
     transparent: false
   })
 
-
   constructor(date: Date, color: number[]) {
     this.color = color
-    this.frameMaterial.color = color
+    this.frameMaterial.color.setRGB(color[0], color[1], color[2])
     this.object = new THREE.Object3D()
 
-    Layout.CreatePlane(
-      date,
-      new Date(date.getTime() + Layout.MS_IN_A_DAY),
-      this.frameMaterial
-    ).forEach((block: THREE.Mesh) => {
-      this.object.add(block)
-    })
+    // Layout.CreatePlane(
+    //   date,
+    //   new Date(date.getTime() + Layout.MS_IN_A_DAY),
+    //   this.frameMaterial
+    // ).forEach((block: THREE.Mesh) => {
+    //   this.object.add(block)
+    // })
 
     const sunrise = getSunrise(LATITUDE, LONGITUDE, date)
     const next_day = new Date(date.getTime() + Layout.MS_IN_A_DAY)
     const sunset = getSunset(LATITUDE, LONGITUDE, next_day)
 
-    Layout.CreatePlane(sunrise, sunset, this.daylightMaterial).forEach((block: THREE.Mesh) => {
-      console.log(block)
-      block.position.z = 0.1
-      block.material.transparent = true
-      block.material.opacity = 0.5
-      block.material.color.setRGB(1, 1, 1)
-      this.object.add(block)
-    })
+    const sunlight = Layout.CreatePlane(sunrise, sunset, this.daylightMaterial)[0]
 
+    sunlight.position.z = 0.1
+    this.object.add(sunlight)
 
     const hourTicks = new THREE.Object3D()
 
     for (let i = 0; i < 24; i++) {
       const tickTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), i, 0, 0)
-      let tickWidth = 1 //mins
+      let tickWidth = 0.5
 
       if (i % 3 === 0) tickWidth *= 2
       if (i % 6 === 0) tickWidth *= 2
@@ -67,11 +62,8 @@ export class DayView {
       const t0 = new Date(tickTime.getTime() - tickWidth * 60 * 1000)
       const t1 = new Date(tickTime.getTime() + tickWidth * 60 * 1000)
 
-      const tick = Layout.CreatePlane(t0, t1, this.tickMaterial)
-      tick.forEach((block: THREE.Mesh) => {
-        console.log(block)
-        hourTicks.add(block)
-      })
+      const tick = Layout.CreatePlane(t0, t1, this.tickMaterial)[0]
+      hourTicks.add(tick)
     }
 
     this.object.add(hourTicks)
@@ -83,7 +75,7 @@ export class DayView {
     })
     text = text.replace(',', '')
     const canvas = document.createElement('canvas')
-    canvas.width = 400
+    canvas.width = 200
     canvas.height = 40
 
     const context = canvas.getContext('2d')
@@ -96,15 +88,20 @@ export class DayView {
     const texture = new THREE.CanvasTexture(canvas)
     texture.filter = THREE.NearestFilter
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 1 })
-    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.01), material)
+    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.003, 0.0005), material)
 
-    // textMesh.position.x = (this.start + this.end) / 2
     textMesh.position.copy(Layout.DateToPos(date))
-    // textMesh.position.z = 0.001
     textMesh.position.y += 0.001
-    // textMesh.position.x += Layout.thickness / 2
-    textMesh.scale.multiplyScalar(0.05)
     this.object.add(textMesh)
+
+    if (date.getDay() == 0) {
+      const weekBar = Layout.CreatePlane(date, new Date(date.getTime() + Layout.MS_IN_A_DAY - 1), this.frameMaterial)[0]
+      weekBar.position.z = 0.2
+      weekBar.position.x -= Layout.thickness / 2
+      weekBar.scale.y = 2
+      weekBar.scale.x = 0.1
+      this.object.add(weekBar)
+    }
   }
 }
 
