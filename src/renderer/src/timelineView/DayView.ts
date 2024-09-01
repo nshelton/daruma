@@ -7,7 +7,6 @@ export class DayView {
   object: THREE.Object3D
   frame: THREE.Object3D
   hourTicks: THREE.Object3D
-  dayHeight = Layout.dayHeight
   direction = 'updown'
   color: number[] = [0.5, 0.5, 0.5]
 
@@ -98,8 +97,6 @@ export class DayView {
 
     const context = canvas.getContext('2d')
     if (context === null) throw new Error('Could not get 2d context')
-    // context.fillStyle = 'green'
-    // context.fillRect(0, 0, canvas.width, canvas.height)
 
     context.fillStyle = 'orange'
     context.font = '30px IBM Plex Mono'
@@ -110,14 +107,24 @@ export class DayView {
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 1 })
     const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.01), material)
 
-    textMesh.position.copy(start)
-    textMesh.position.add(end).divideScalar(2)
-
     // textMesh.position.x = (this.start + this.end) / 2
-    textMesh.position.y += width / 2 + 0.001
+    textMesh.position.copy(Layout.DateToPos(date))
     textMesh.position.z = 0.001
-    textMesh.scale.multiplyScalar(0.06)
+    textMesh.position.y -= 0.001
+    textMesh.position.x += Layout.thickness / 2
+    textMesh.scale.multiplyScalar(0.05)
     this.object.add(textMesh)
+
+    // add box for middle of day
+    const middleOfDay = new Date(date.getTime() + Layout.MS_IN_A_DAY / 2)
+    const middle = Layout.DateToPos(middleOfDay)
+    const box = this.makePlane(middle, middle)
+    box.position.z = 0.1
+    box.material.transparent = true
+    box.material.opacity = 0.5
+    box.material.color.setRGB(1, 1, 1)
+    this.object.add(box)
+
   }
 }
 

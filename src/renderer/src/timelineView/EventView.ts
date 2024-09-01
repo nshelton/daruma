@@ -11,6 +11,7 @@ export class EventView {
   type: string
   selected: boolean = false
   hovered: boolean = false
+  direction = 'updown'
 
   // TODO make the colors like this
   color: number[] = [0.5, 0.1, 0.5]
@@ -76,48 +77,47 @@ export class EventView {
     }
   }
 
-  private makePlane(startPos: Date, endPos: Date, thickness: number): THREE.Mesh {
-    this.color = this.getColorForEvent(this.type)
-    this.selected_color = this.color.map((c) => c * 1.5 + 0.2)
-    this.hilight_color = this.color.map((c) => c * 1.2 + 0.5)
+  private makePlane(start: Date, end: Date): THREE.Mesh {
+    const startPos = Layout.DateToPos(start)
+    const endPos = Layout.DateToPos(end)
+    let w = Math.abs(endPos.x - startPos.x)
+    let h = Math.abs(endPos.y - startPos.y)
 
-    const start: THREE.Vector3 = Layout.DateToPos(startPos)
-    const end: THREE.Vector3 = Layout.DateToPos(endPos)
+    //check if ends on the next day and create two boxes
 
-    let w = Math.abs(end.x - start.x)
-    let h = Math.abs(end.y - start.y)
-
-    if (w < 0.0000001) {
-      w = thickness
-    }
-
-    if (h < 0.0000001) {
-      h = thickness
+    if (this.direction === 'updown') {
+      w = Layout.thickness * 0.3
+    } else if (this.direction === 'leftright') {
+      h = Layout.thickness
     }
     const geometry = new THREE.PlaneGeometry(w * 0.99, h * 0.99)
-
-    const plane_mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial())
-
-    plane_mesh.position.copy(start)
-    plane_mesh.position.add(end).divideScalar(2)
-    plane_mesh.position.y += this.getYPosForEvent(this.type)
-    plane_mesh.position.z = 0.5
+    const plane_mesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(this.color[0], this.color[1], this.color[2]),
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        depthTest: false
+      })
+    )
+    plane_mesh.position.copy(startPos)
+    plane_mesh.position.add(endPos).divideScalar(2)
+    // plane_mesh.position.x += Layout.thickness * 0.5
     return plane_mesh
   }
 
   constructor(event: Event) {
     this.object = new THREE.Object3D()
     this.object.viewObject = this
-
-    this.height = 0.0000001
+    this.color = this.getColorForEvent(event.eventType)
 
     this.start = event.start
     this.end = event.end
     this.type = event.eventType
     const box = this.makePlane(this.start, this.end, this.height)
     this.object.add(box)
-
-    this.setColor(this.color)
 
   }
 }
