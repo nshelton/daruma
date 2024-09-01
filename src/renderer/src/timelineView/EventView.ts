@@ -2,6 +2,7 @@
 import * as THREE from 'three'
 import { Layout } from './dateUtils'
 import { Event } from '../../types/Event.ts'
+import { Materials } from '../materials/Materials'
 
 export class EventView {
   object: THREE.Object3D
@@ -11,6 +12,7 @@ export class EventView {
   selected: boolean = false
   hovered: boolean = false
   direction = 'updown'
+  material: THREE.Material
 
   // TODO make the colors like this
   color: number[] = [0.5, 0.1, 0.5]
@@ -64,7 +66,7 @@ export class EventView {
   private getYPosForEvent(type: string): number {
     switch (type) {
       case 'charging':
-        return 0.000
+        return 0.0
       case 'heidi':
         return 0.0001
       case 'home':
@@ -85,21 +87,15 @@ export class EventView {
     this.end = event.end
     this.type = event.eventType
 
-    this.material = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(this.color[0], this.color[1], this.color[2]),
-        transparent: true,
-        opacity: 0.5,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        depthTest: false,
-        blending: THREE.AdditiveBlending
+    this.material = Materials.GetEventMaterial(
+      new THREE.Color(this.color[0], this.color[1], this.color[2]));
 
-      })
-    const box = Layout.CreatePlane(this.start, this.end, this.material).forEach((block: THREE.Mesh) => {
-      block.scale.x *= 0.5
-      this.object.add(block)
-    })
-
+    const box = Layout.CreatePlane(this.start, this.end, this.material).forEach(
+      (block: THREE.Mesh) => {
+        block.scale.x *= 0.5
+        this.object.add(block)
+      }
+    )
   }
 }
 

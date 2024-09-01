@@ -55,13 +55,6 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     window.addEventListener('resize', handleResize)
     camera.position.z = 10
 
-    //draw a really long boxx for timeline that renders on top of everything
-    const geometry = new THREE.PlaneGeometry(100000, 0.00005)
-    const material = new THREE.MeshBasicMaterial({ color: 0x666666 })
-    const timeline = new THREE.Mesh(geometry, material)
-    timeline.position.z = 9
-    scene.add(timeline)
-
     // iterate through days of the year
     for (let i = 0; i < 365; i++) {
       const date = new Date(2024, 0, i + 1)

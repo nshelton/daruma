@@ -73,7 +73,7 @@ export class DayView {
       month: 'short',
       day: 'numeric'
     })
-    text = text.replace(',', '')
+    text = text.replace(',', '').toLocaleLowerCase()
     const canvas = document.createElement('canvas')
     canvas.width = 200
     canvas.height = 40
@@ -88,7 +88,7 @@ export class DayView {
     const texture = new THREE.CanvasTexture(canvas)
     texture.filter = THREE.NearestFilter
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 1 })
-    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.003, 0.0005), material)
+    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.0025, 0.0005), material)
 
     textMesh.position.copy(Layout.DateToPos(date))
     textMesh.position.y += 0.001
