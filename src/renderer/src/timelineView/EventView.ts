@@ -9,46 +9,55 @@ export class EventView {
   end: Date
   height: number
   type: string
-  selected : boolean = false
-  hovered : boolean = false
+  selected: boolean = false
+  hovered: boolean = false
 
   // TODO make the colors like this
-  // color: number[] = [0.5, 0.5, 0.5]
-  // selected_color: number[] = [0.5, 0.5, 0.5]
-  // hilight_color: number[] = [0.5, 0.5, 0.5]
+  color: number[] = [0.5, 0.1, 0.5]
+  selected_color: number[] = [0.5, 0.5, 0.5]
+  hilight_color: number[] = [0.5, 0.5, 0.5]
+
+  setColor(color: number[]): void {
+    this.object.children[0].material.color.setRGB(color[0], color[1], color[2])
+  }
 
   select(): void {
     this.selected = true
-    this.object.children[0].material.color.setHex(0xffff00)
+    this.setColor(this.selected_color)
   }
 
   unselect(): void {
     this.selected = false
-    this.object.children[0].material.color.setHex(this.getColorForEvent(this.type))
+    this.setColor(this.color)
   }
 
   unhilight(): void {
     this.hovered = false
-    this.object.children[0].material.color.setHex(this.getColorForEvent(this.type))
+    if (!this.selected) {
+      this.setColor(this.color)
+    }
   }
 
   hilight(): void {
     this.hovered = true
-    this.object.children[0].material.color.setHex(0xff0000)
+    if (!this.selected) {
+      this.setColor(this.hilight_color)
+    }
   }
 
-  private getColorForEvent(type: string): number {
+  private getColorForEvent(type: string): number[] {
+    const b = 0.6
     switch (type) {
       case 'charging':
-        return 0x00ff00
+        return [0, b, 0]
       case 'heidi':
-        return 0xff00ff
+        return [b, 0, b]
       case 'home':
-        return 0x0000ff
+        return [0, 0, b]
       case 'wifi':
-        return 0x00ffff
+        return [0, b, b]
       default:
-        return 0x333333
+        return [0.3, 0.3, 0.3]
     }
   }
 
@@ -68,6 +77,12 @@ export class EventView {
   }
 
   private makePlane(startPos: Date, endPos: Date, height: number): THREE.Mesh {
+    this.color = this.getColorForEvent(this.type)
+    this.selected_color = this.color.map((c) => c * 1.5 + 0.2)
+    this.hilight_color = this.color.map((c) => c * 1.2 + 0.5)
+
+    console.log(this.color, this.hilight_color, this.selected_color)
+
     const start: THREE.Vector3 = Layout.DateToPos(startPos)
     const end: THREE.Vector3 = Layout.DateToPos(endPos)
 
@@ -87,7 +102,6 @@ export class EventView {
     plane_mesh.position.z = 0.5
     return plane_mesh
   }
-
 
   constructor(event: Event) {
     this.object = new THREE.Object3D()
