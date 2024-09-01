@@ -31,8 +31,7 @@ class Materials {
   static GetEventMaterial(color: THREE.Color): THREE.Material {
     return new THREE.ShaderMaterial({
       uniforms: {
-        color: { value: color },
-        time: { value: 1.0 }
+        color: { value: color }
       },
       vertexShader,
       fragmentShader

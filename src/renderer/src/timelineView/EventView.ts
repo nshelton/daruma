@@ -20,7 +20,7 @@ export class EventView {
   hilight_color: number[] = [0.5, 0.5, 0.5]
 
   setColor(color: number[]): void {
-    this.object.children[0].material.color.setRGB(color[0], color[1], color[2])
+    this.object.children[0].material.uniforms.color.value.setRGB(color[0], color[1], color[2])
   }
 
   select(): void {
@@ -78,17 +78,23 @@ export class EventView {
     }
   }
 
-  constructor(event: Event) {
+  constructor(
+    event: Event,
+    startTime: Date | undefined = undefined,
+    endTime: Date | undefined = undefined
+  ) {
     this.object = new THREE.Object3D()
     this.object.viewObject = this
     this.color = this.getColorForEvent(event.eventType)
 
-    this.start = event.start
-    this.end = event.end
+    this.start = startTime || event.start
+    this.end = endTime || event.end
+
     this.type = event.eventType
 
     this.material = Materials.GetEventMaterial(
-      new THREE.Color(this.color[0], this.color[1], this.color[2]));
+      new THREE.Color(this.color[0], this.color[1], this.color[2])
+    )
 
     const box = Layout.CreatePlane(this.start, this.end, this.material).forEach(
       (block: THREE.Mesh) => {

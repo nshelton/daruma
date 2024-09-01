@@ -1,4 +1,3 @@
-// ThreeCanvas.tsx
 import React, { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
@@ -7,10 +6,9 @@ import { EventView } from './EventView'
 import { CurrentTimeView } from './CurrentTimeView'
 import Stats from 'three/examples/jsm/libs/stats.module.js'
 import turboColors from '../ColorSchemes'
-// import Event from '../../main/EventParser.ts'
+import { IpcRendererEvent } from 'electron'
 
 const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
-
   const mountRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -26,6 +24,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(window.innerWidth, window.innerHeight)
+
     mount.appendChild(renderer.domElement)
 
     const handleResize = (): void => {
@@ -39,14 +38,9 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     handleResize()
     const controls = new OrbitControls(camera, renderer.domElement)
-    // controls.enableDamping = true // an animation loop is required when either damping or auto-rotation are enabled
-    // controls.dampingFactor = 0.25
-
     controls.minDistance = 1
     controls.maxDistance = 500
     controls.enableRotate = false
-
-    // swap left button for pan and right button for rotate
     controls.mouseButtons = {
       LEFT: THREE.MOUSE.PAN,
       RIGHT: THREE.MOUSE.ROTATE
@@ -63,39 +57,27 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
       scene.add(dayView.object)
     }
 
-    document.getElementById('stats')?.remove()
     const stats = new Stats()
-
-    stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
+    stats.showPanel(0)
     const stat_dom_object = stats.dom
     stat_dom_object.id = 'stats'
     document.getElementById('main-canvas')?.appendChild(stat_dom_object)
 
-    const triggerLoad = (): void => window.electron.ipcRenderer.send('get-file-content')
-    const EventViewToEventData = {}
+    const EventViewToEventData: Record<string, any> = {}
     const AllEventViews: EventView[] = []
-
-    window.electron.ipcRenderer.on('event-list', (_, eventlist: Event[]) => {
-      eventlist.forEach((e) => {
-        const event = new EventView(e)
-        scene.add(event.object)
-        AllEventViews.push(event)
-        EventViewToEventData[event.object.uuid] = e
-      })
-    })
-
-    console.log('loader')
-    triggerLoad()
 
     let current_selected: EventView | undefined = undefined
 
     const onDocumentMouseDown = (event: MouseEvent): void => {
       event.preventDefault()
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+      const mouse = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+      )
+      const raycaster = new THREE.Raycaster()
       raycaster.setFromCamera(mouse, camera)
       const intersects = raycaster.intersectObjects(scene.children, true)
-      if (intersects[0].object.parent.viewObject instanceof EventView) {
+      if (intersects[0]?.object.parent?.viewObject instanceof EventView) {
         const clickedView = intersects[0].object.parent.viewObject
         const this_data = EventViewToEventData[clickedView.object.uuid]
         infoPanelCallback(this_data)
@@ -109,32 +91,30 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     const onDocumentMouseMove = (event: MouseEvent): void => {
       event.preventDefault()
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+      const mouse = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+      )
+      const raycaster = new THREE.Raycaster()
       raycaster.setFromCamera(mouse, camera)
       const intersects = raycaster.intersectObjects(scene.children, true)
-      if (intersects.length > 0) {
-        console.log(intersects[0].object.viewObject)
-        AllEventViews.forEach((e) => {
-          e.unhilight()
-        })
-        if (intersects[0].object.parent.viewObject instanceof EventView) {
-          intersects[0].object.parent.viewObject.hilight()
-        }
+      AllEventViews.forEach((e) => e.unhilight())
+      if (intersects[0]?.object.parent?.viewObject instanceof EventView) {
+        intersects[0].object.parent.viewObject.hilight()
       }
     }
 
-    const raycaster = new THREE.Raycaster()
-    const mouse = new THREE.Vector2()
-    renderer.domElement.addEventListener('click', onDocumentMouseDown, false)
-    renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false)
+    renderer.domElement.addEventListener('click', onDocumentMouseDown)
+    renderer.domElement.addEventListener('mousemove', onDocumentMouseMove)
 
     const current_time = new CurrentTimeView()
     scene.add(current_time.object)
-    const animate = (): void => {
 
-      requestAnimationFrame(animate)
-      controls.update() // only required if controls.enableDamping or controls.autoRotate are set to true
+    let animationFrameId: number
+
+    const animate = (): void => {
+      animationFrameId = requestAnimationFrame(animate)
+      controls.update()
       renderer.render(scene, camera)
       current_time?.update()
       stats.update()
@@ -142,11 +122,32 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     animate()
 
-    return (): void => {
-      mount.removeChild(renderer.domElement)
+    const handleEventList = (_: IpcRendererEvent, eventlist: Event[]): void => {
+      eventlist.forEach((e) => {
+        const event = new EventView(e)
+        scene.add(event.object)
+        AllEventViews.push(event)
+        EventViewToEventData[event.object.uuid] = e
+      })
     }
 
+    window.electron.ipcRenderer.on('event-list', handleEventList)
+    window.electron.ipcRenderer.send('get-file-content')
 
+    return (): void => {
+      window.removeEventListener('resize', handleResize)
+
+      renderer.domElement.removeEventListener('click', onDocumentMouseDown)
+      renderer.domElement.removeEventListener('mousemove', onDocumentMouseMove)
+      window.electron.ipcRenderer.removeListener('event-list', handleEventList)
+      cancelAnimationFrame(animationFrameId)
+      controls.dispose()
+      renderer.dispose()
+      renderer.forceContextLoss() // Add this line to discard the active WebGL context
+      if (mount.children[0]) mount.removeChild(mount.children[0])
+      document.getElementById('stats')?.remove()
+      scene.clear()
+    }
   }, [])
 
   return <div ref={mountRef} />
