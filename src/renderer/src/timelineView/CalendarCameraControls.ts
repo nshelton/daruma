@@ -6,9 +6,9 @@ export class CalendarCameraControls {
   private domElement: HTMLElement
 
   public x_position: number = 0
-  public y_position: number = 0.001
+  public y_position: number = 0.0012
   public x_view_width: number = 0.01
-  public y_view_height: number = 0.01
+  public y_view_height: number = 0.008
 
   public enabled: boolean = true
 

@@ -15,7 +15,7 @@ export class CurrentTimeView {
     const lineMaterial = new THREE.MeshBasicMaterial({
       color: 0xff8800,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.1
     })
 
     const cursor = new THREE.Mesh(geometry, lineMaterial)

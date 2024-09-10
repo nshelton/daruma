@@ -100,7 +100,7 @@ export class EventView {
 
     const box = Layout.CreatePlane(this.start, this.end, this.material).forEach(
       (block: THREE.Mesh) => {
-        block.scale.x *= 0.3
+        block.scale.x *= 0.8
         block.position.x += (this.getYPosForEvent(this.type) * Layout.thickness) / 10
         this.object.add(block)
       }

@@ -5,6 +5,7 @@ Visualize timeseries data, location history, events
 
 
 TODOS:
+[] zoom into where the cursor is, instead of center
 [] implement server or local db with standardized event schema
 
 [] wifi event doesn't work well
