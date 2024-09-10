@@ -9,14 +9,14 @@ export class MouseInteractionManager {
   private renderer: THREE.Renderer
   private eventViews: EventView[]
   private interactiveObjects: THREE.Object3D[]
-  private onSelectCallback: (event: Event) => void
+  private onSelectCallback: (clicked_view: EventView) => void
   private currentSelected?: EventView
 
   constructor(
     camera: THREE.Camera,
     scene: THREE.Scene,
     renderer: THREE.Renderer,
-    onSelectCallback: (event: Event) => void
+    onSelectCallback: (clicked_view: EventView) => void
   ) {
     this.camera = camera
     this.scene = scene
@@ -33,6 +33,13 @@ export class MouseInteractionManager {
     this.onClick = this.onClick.bind(this)
 
     this.addEventListeners()
+  }
+
+  public deselectAll(): void {
+    this.currentSelected?.unselect()
+    this.currentSelected = undefined
+
+    this.eventViews.forEach((eventView) => eventView.unhilight())
   }
 
   public setEventViews(eventViews: EventView[]): void {
@@ -93,7 +100,7 @@ export class MouseInteractionManager {
         }
         eventView.select()
         this.currentSelected = eventView
-        this.onSelectCallback(eventView.getEventData())
+        this.onSelectCallback(eventView)
       }
     }
   }

@@ -46,7 +46,6 @@ class Layout {
     const endPos = Layout.DateToPos(end)
     let w = Math.abs(endPos.x - startPos.x)
     let h = Math.abs(endPos.y - startPos.y)
-
     //check if ends on the next day and create two boxes
     const dayWraps = endPos.x != startPos.x
     if (dayWraps && this.layout === 'days-vertical') {

@@ -34,7 +34,8 @@ class Materials {
         color: { value: color }
       },
       vertexShader,
-      fragmentShader
+      fragmentShader,
+      blending: THREE.AdditiveBlending
     })
   }
 }

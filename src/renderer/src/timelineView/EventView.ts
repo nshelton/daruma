@@ -13,6 +13,7 @@ export class EventView {
   hovered: boolean = false
   direction = 'updown'
   material: THREE.Material
+  eventData: Event
 
   // TODO make the colors like this
   color: number[] = [0.5, 0.1, 0.5]
@@ -84,6 +85,7 @@ export class EventView {
     endTime: Date | undefined = undefined
   ) {
     this.object = new THREE.Object3D()
+    this.eventData = event
     this.object.viewObject = this
     this.color = this.getColorForEvent(event.eventType)
 
@@ -99,7 +101,7 @@ export class EventView {
     const box = Layout.CreatePlane(this.start, this.end, this.material).forEach(
       (block: THREE.Mesh) => {
         block.scale.x *= 0.3
-        block.position.x += this.getYPosForEvent(this.type) * Layout.thickness/10
+        block.position.x += (this.getYPosForEvent(this.type) * Layout.thickness) / 10
         this.object.add(block)
       }
     )

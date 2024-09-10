@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { CalendarCameraControls } from './CalendarCameraControls'
 import { DayView } from './DayView'
 import { EventView } from './EventView'
 import { CurrentTimeView } from './CurrentTimeView'
@@ -22,8 +22,6 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera()
-
-
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(window.innerWidth, window.innerHeight)
@@ -48,15 +46,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     }
 
     handleResize()
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.minDistance = 1
-    controls.maxDistance = 500
-    controls.enableRotate = false
-    controls.mouseButtons = {
-      LEFT: THREE.MOUSE.PAN,
-      RIGHT: THREE.MOUSE.ROTATE
-    }
-
+    const controls = new CalendarCameraControls(camera, renderer.domElement)
     window.addEventListener('resize', handleResize)
     camera.position.z = 10
 
@@ -76,7 +66,6 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     const EventViewToEventData: Record<string, Event> = {}
     const AllEventViews: EventView[] = []
-
 
     const current_time = new CurrentTimeView()
     scene.add(current_time.object)
