@@ -16,10 +16,10 @@ function App(): JSX.Element {
 
   return (
     <div id="main-canvas">
-      {/* <MapPanel /> */}
-      <NavPanel onShowInfoPanel={(message) => handleToggleInfoPanel(true, message)} />
-      <ThreeCanvas infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} />
-      {isInfoPanelVisible && <InfoPanel onToggle={handleToggleInfoPanel} message={infoMessage} />}
+      <MapPanel />
+      {/* <NavPanel onShowInfoPanel={(message) => handleToggleInfoPanel(true, message)} /> */}
+      {/* <ThreeCanvas infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} /> */}
+      {/* {isInfoPanelVisible && <InfoPanel onToggle={handleToggleInfoPanel} message={infoMessage} />} */}
     </div>
   )
 }

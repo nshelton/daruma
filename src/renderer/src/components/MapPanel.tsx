@@ -45,7 +45,7 @@ export default function MapView({
       radiusScale: radius,
       radiusMinPixels: 0.25,
       getPosition: (d: ArcPoint): [number, number, number] => [d[0], d[1], 0],
-      getFillColor: (): [number, number, number] => [200, 200, 255],
+      getFillColor: (): [number, number, number] => [200, 200, 0],
       getRadius: 1
       // updateTriggers: {
         // getFillColor: ['green', 'red']
