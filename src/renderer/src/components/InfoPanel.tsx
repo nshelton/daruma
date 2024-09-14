@@ -1,6 +1,6 @@
 import React from 'react'
 import 'bootstrap-icons/font/bootstrap-icons.css'
-import { Event } from '../../../types/Event.ts'
+import { Event } from '../../../types'
 
 interface InfoPanelProps {
   onToggle: (show: boolean) => void

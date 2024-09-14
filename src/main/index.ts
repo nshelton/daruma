@@ -7,16 +7,22 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
-  ipcMain.on('ping', () => console.log('pong'))
-
   ipcMain.on('get-file-content', (event) => {
     console.log('get-file-content')
 
     getAllEvents((err, all_events) => {
-
       console.log(all_events)
       event.reply('event-list', all_events)
     })
+  })
+
+  ipcMain.on('get-location-data', (event) => {
+    console.log('get-location-data')
+    const data = [
+      [-118.29, 34.08, new Date()],
+      [-118.29, 34.01, new Date()]
+    ]
+    event.reply('location-data', data)
   })
 
   createWindow()

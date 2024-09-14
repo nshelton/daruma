@@ -11,9 +11,9 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
+      "@types/*": ["types/*"],
       "@renderer/*": [
         "src/renderer/src/*",
-        "src/main/EventParser.ts"
       ]
     }
   }
