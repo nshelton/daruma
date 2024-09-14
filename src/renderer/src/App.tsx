@@ -9,17 +9,17 @@ function App(): JSX.Element {
   const [isInfoPanelVisible, setIsInfoPanelVisible] = useState(false)
   const [infoMessage, setInfoMessage] = useState({})
 
-  const handleToggleInfoPanel = (show: boolean, message: string = '') => {
+  const handleToggleInfoPanel = (show: boolean, message: string = ''): void => {
     setInfoMessage(message)
     setIsInfoPanelVisible(show)
   }
 
   return (
     <div id="main-canvas">
-      <MapPanel />
-      {/* <NavPanel onShowInfoPanel={(message) => handleToggleInfoPanel(true, message)} /> */}
-      {/* <ThreeCanvas infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} /> */}
-      {/* {isInfoPanelVisible && <InfoPanel onToggle={handleToggleInfoPanel} message={infoMessage} />} */}
+      {/* <MapPanel /> */}
+      <NavPanel onShowInfoPanel={(message) => handleToggleInfoPanel(true, message)} />
+      <ThreeCanvas infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} />
+      {isInfoPanelVisible && <InfoPanel onToggle={handleToggleInfoPanel} message={infoMessage} />}
     </div>
   )
 }
