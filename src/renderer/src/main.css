@@ -43,3 +43,8 @@ button {
   bottom:50px;
   color: rgb(255,255,255);
 }
+
+#root {
+  width:100%;
+  height:100%;
+}

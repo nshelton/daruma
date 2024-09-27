@@ -5,11 +5,14 @@ import { DayView } from './DayView'
 import { EventView } from './EventView'
 import { CurrentTimeView } from './CurrentTimeView'
 import Stats from 'three/examples/jsm/libs/stats.module.js'
-import turboColors from '../ColorSchemes'
+import { turboColors } from '../ColorSchemes'
 import { IpcRendererEvent } from 'electron'
 import { MouseInteractionManager } from './MouseInteractionManager'
+import { ArcPoint } from 'src/types'
+import { LocationView } from './LocationView'
 
-const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
+const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ eventData, locationData, infoPanelCallback }) => {
+
   const mountRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -18,13 +21,15 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     infoPanelCallback({})
 
-    const initial_zoom = 100000
+    const initial_zoom = 10000
 
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera()
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
-    renderer.setSize(window.innerWidth, window.innerHeight)
+    const domElement = renderer.domElement
+    console.log(window.innerWidth, window.innerHeight);
+    renderer.setSize(domElement.clientWidth, domElement.clientHeight)
 
     mount.appendChild(renderer.domElement)
 
@@ -34,14 +39,16 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
       renderer,
       (event: EventView) => {
         infoPanelCallback(EventViewToEventData[event.object.uuid])
-    })
+      })
 
     const handleResize = (): void => {
-      renderer.setSize(window.innerWidth, window.innerHeight)
-      camera.left = window.innerWidth / -initial_zoom
-      camera.right = window.innerWidth / initial_zoom
-      camera.top = window.innerHeight / initial_zoom
-      camera.bottom = window.innerHeight / -initial_zoom
+      const w = window.innerWidth
+      const h = window.innerHeight
+      renderer.setSize(w, h)
+      camera.left = w / -initial_zoom
+      camera.right = w / initial_zoom
+      camera.top = h / initial_zoom
+      camera.bottom = h / -initial_zoom
       camera.updateProjectionMatrix()
     }
 
@@ -51,11 +58,13 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     camera.position.z = 10
 
     // iterate through days of the year
-    for (let i = 0; i < 365; i++) {
-      const date = new Date(2024, 0, i + 1)
-      const index = Math.floor((turboColors.length * i) / 365)
-      const dayView = new DayView(date, turboColors[index])
-      scene.add(dayView.object)
+    for (let year = 2020; year < 2025; year++) {
+      for (let i = 0; i < 365; i++) {
+        const date = new Date(year, 0, i + 1)
+        const index = Math.floor((turboColors.length * i) / 365)
+        const dayView = new DayView(date, turboColors[index])
+        scene.add(dayView.object)
+      }
     }
 
     const stats = new Stats()
@@ -70,6 +79,20 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
     const current_time = new CurrentTimeView()
     scene.add(current_time.object)
 
+    eventData.forEach((e: Event) => {
+      const event = new EventView(e)
+      scene.add(event.object)
+      AllEventViews.push(event)
+      EventViewToEventData[event.object.uuid] = e
+    })
+
+    for (var i = locationData.length - 1; i > locationData.length  - 1000; i--) {
+      console.log(locationData[i])
+      if (locationData[i] == undefined) continue
+      const locationPoint = new LocationView(locationData[i].time)
+      scene.add(locationPoint.object)
+    }
+
     let animationFrameId: number
 
     const animate = (): void => {
@@ -82,23 +105,12 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ infoPanelCallback }) => {
 
     animate()
 
-    const handleEventList = (_: IpcRendererEvent, eventlist: Event[]): void => {
-      eventlist.forEach((e) => {
-        const event = new EventView(e)
-        scene.add(event.object)
-        AllEventViews.push(event)
-        EventViewToEventData[event.object.uuid] = e
-      })
-      mouseControls.setEventViews(AllEventViews)
-    }
 
-    window.electron.ipcRenderer.on('event-list', handleEventList)
-    window.electron.ipcRenderer.send('get-file-content')
+    mouseControls.setEventViews(AllEventViews)
 
     return (): void => {
       window.removeEventListener('resize', handleResize)
 
-      window.electron.ipcRenderer.removeListener('event-list', handleEventList)
       cancelAnimationFrame(animationFrameId)
       mouseControls.dispose()
       controls.dispose()

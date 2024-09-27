@@ -1,28 +1,26 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
-import { getAllEvents } from './db'
+import { getAllEvents, getAllLocations } from './db'
+import { ArcPoint } from 'src/types'
 
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
-  ipcMain.on('get-file-content', (event) => {
-    console.log('get-file-content')
-
-    getAllEvents((err, all_events) => {
-      console.log(all_events)
-      event.reply('event-list', all_events)
+  ipcMain.on('get-events', (event) => {
+    console.log('get-events')
+    getAllEvents((err, data) => {
+      event.reply('event-data', data)
     })
   })
 
-  ipcMain.on('get-location-data', (event) => {
-    console.log('get-location-data')
-    const data = [
-      [-118.29, 34.08, new Date()],
-      [-118.29, 34.01, new Date()]
-    ]
-    event.reply('location-data', data)
+  ipcMain.on('get-locations', (event) => {
+    console.log('get-locations')
+    getAllLocations((err, data) => {
+      data.sort((a: ArcPoint, b: ArcPoint) => (a < b ? 1 : -1))
+      event.reply('location-data', data)
+    })
   })
 
   createWindow()
