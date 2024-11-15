@@ -29,7 +29,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ eventData, locationData, info
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     const domElement = renderer.domElement
     console.log(window.innerWidth, window.innerHeight);
-    renderer.setSize(domElement.clientWidth, domElement.clientHeight)
+    renderer.setSize(domElement.clientWidth-500, domElement.clientHeight)
 
     mount.appendChild(renderer.domElement)
 
@@ -86,12 +86,12 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ eventData, locationData, info
       EventViewToEventData[event.object.uuid] = e
     })
 
-    for (var i = locationData.length - 1; i > locationData.length  - 1000; i--) {
-      console.log(locationData[i])
-      if (locationData[i] == undefined) continue
-      const locationPoint = new LocationView(locationData[i].time)
-      scene.add(locationPoint.object)
-    }
+    // for (var i = locationData.length - 1; i > locationData.length  - 1000; i--) {
+    //   console.log(locationData[i])
+    //   if (locationData[i] == undefined) continue
+    //   const locationPoint = new LocationView(locationData[i].time)
+    //   scene.add(locationPoint.object)
+    // }
 
     let animationFrameId: number
 

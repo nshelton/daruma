@@ -91,7 +91,7 @@ export class DayView {
     const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.0025, 0.0005), material)
 
     textMesh.position.copy(Layout.DateToPos(date))
-    textMesh.position.y += 0.001
+    textMesh.position.y += 0.000
     this.object.add(textMesh)
 
     if (date.getDay() == 0) {

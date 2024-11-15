@@ -62,8 +62,8 @@ export class MouseInteractionManager {
   }
 
   private updateMousePosition(event: MouseEvent): void {
-    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+    this.mouse.x = ((event.clientX - 500)/ window.innerWidth ) * 2 - 1
+    this.mouse.y = -((event.clientY )/ window.innerHeight ) * 2 + 1
   }
 
   private getIntersectedObject(): THREE.Intersection | null {

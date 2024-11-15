@@ -50,7 +50,7 @@ function App(): JSX.Element {
       {/* <MapPanel data={locationData} /> */}
       <GoogleMapPanel data={locationData} />
       <NavPanel onShowInfoPanel={(message) => handleToggleInfoPanel(true, message)} />
-      <ThreeCanvas eventData={eventData} locationData={locationData} infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} />
+      {/* <ThreeCanvas eventData={eventData} locationData={locationData} infoPanelCallback={(message) => handleToggleInfoPanel(true, message)} /> */}
       {isInfoPanelVisible && <InfoPanel onToggle={handleToggleInfoPanel} message={infoMessage} />}
     </div>
   )
