@@ -18,14 +18,14 @@ const INITIAL_VIEW_STATE: MapViewState = {
   zoom: 11,
   maxZoom: 16,
   pitch: 0,
-  bearing: 0
+  bearing: 0,
 }
 
-const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json"
+const MAP_STYLE =
+  'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json'
 // const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
 // const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
 export default function MapView({ data }: { data: ArcPoint[] }): JSX.Element {
-
   const points = data.map((d) => [d.lng, d.lat])
   console.log(points)
 
@@ -38,7 +38,7 @@ export default function MapView({ data }: { data: ArcPoint[] }): JSX.Element {
       radiusMinPixels: 0.25,
       getPosition: (d: ArcPoint): [number, number, number] => [d[0], d[1], 0],
       getFillColor: (): [number, number, number] => [0, 200, 200],
-      getRadius: 1
+      getRadius: 1,
     }),
     new HeatmapLayer({
       id: 'HeatmapLayer',
@@ -47,13 +47,16 @@ export default function MapView({ data }: { data: ArcPoint[] }): JSX.Element {
       colorRange: turboColorsUint8,
       getPosition: (d: ArcPoint): [number, number, number] => [d[0], d[1], 0],
       getWeight: (_: ArcPoint): number => 1,
-      radiusPixels: 10
-    })
+      radiusPixels: 10,
+    }),
   ]
 
-
   return (
-    <DeckGL layers={layers} initialViewState={INITIAL_VIEW_STATE} controller={true}>
+    <DeckGL
+      layers={layers}
+      initialViewState={INITIAL_VIEW_STATE}
+      controller={true}
+    >
       {/* <Map reuseMaps mapStyle={MAP_STYLE} /> */}
     </DeckGL>
   )

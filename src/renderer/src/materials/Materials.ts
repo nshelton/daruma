@@ -31,11 +31,11 @@ class Materials {
   static GetEventMaterial(color: THREE.Color): THREE.Material {
     return new THREE.ShaderMaterial({
       uniforms: {
-        color: { value: color }
+        color: { value: color },
       },
       vertexShader,
       fragmentShader,
-      blending: THREE.AdditiveBlending
+      blending: THREE.AdditiveBlending,
     })
   }
 }

@@ -6,7 +6,9 @@ const db_events = new sqlite3.Database('parser/events.db')
 const db_locations = new sqlite3.Database('parser/locations.db')
 
 // Define a function to retrieve all events from the database
-export function getAllEvents(callback: (err: Error | null, events: Event[]) => void): void {
+export function getAllEvents(
+  callback: (err: Error | null, events: Event[]) => void,
+): void {
   // Define the SQL query
   const query = 'SELECT * FROM events'
 
@@ -22,7 +24,7 @@ export function getAllEvents(callback: (err: Error | null, events: Event[]) => v
       name: row.name,
       start: new Date(row.start),
       end: new Date(row.end),
-      eventType: row.eventType
+      eventType: row.eventType,
     }))
 
     callback(null, events)
@@ -30,7 +32,7 @@ export function getAllEvents(callback: (err: Error | null, events: Event[]) => v
 }
 
 export function getAllLocations(
-  callback: (err: Error | null, locations: ArcPoint[]) => void
+  callback: (err: Error | null, locations: ArcPoint[]) => void,
 ): void {
   // Define the SQL query
   const query = 'SELECT * FROM locations'
@@ -46,7 +48,7 @@ export function getAllLocations(
     const locations: ArcPoint[] = rows.map((row) => ({
       lat: row.lat,
       lng: row.lng,
-      time: new Date(row.time)
+      time: new Date(row.time),
     }))
 
     callback(null, locations)
