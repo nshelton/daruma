@@ -22,6 +22,8 @@ const VISIBILITY_THRESHOLDS = {
   hours: 24 * 2, // Show individual hours if <= 2 days visible (example adjustment)
 }
 
+const FONT_SIZE = 32
+
 function calculateTimeSpans(
   start: number,
   end: number,
@@ -57,7 +59,7 @@ function createTimeHierarchy(
       name: 'year',
       span: spans.yearSpan,
       threshold: VISIBILITY_THRESHOLDS.years,
-      yPosition: 20, // Adjusted Y positions for layer
+      yPosition: FONT_SIZE, // Adjusted Y positions for layer
       getNext: (date: Date): Date => {
         const next = new Date(date)
         next.setFullYear(date.getFullYear() + 1)
@@ -75,7 +77,7 @@ function createTimeHierarchy(
       name: 'month',
       span: spans.monthSpan,
       threshold: VISIBILITY_THRESHOLDS.months,
-      yPosition: 40,
+      yPosition: FONT_SIZE * 2,
       getNext: (date: Date): Date => {
         const next = new Date(date)
         next.setMonth(date.getMonth() + 1)
@@ -93,7 +95,7 @@ function createTimeHierarchy(
       name: 'day',
       span: spans.daySpan,
       threshold: VISIBILITY_THRESHOLDS.days,
-      yPosition: 60,
+      yPosition: FONT_SIZE * 3,
       getNext: (date: Date): Date => {
         const next = new Date(date)
         next.setDate(date.getDate() + 1)
@@ -114,7 +116,7 @@ function createTimeHierarchy(
       name: 'hour',
       span: spans.hourSpan,
       threshold: VISIBILITY_THRESHOLDS.hours,
-      yPosition: 80,
+      yPosition: FONT_SIZE * 4,
       getNext: (date: Date): Date => {
         const next = new Date(date)
         next.setHours(date.getHours() + 1)
@@ -161,8 +163,8 @@ export class TimeMarkersLayer implements Layer {
 
     ctx.save()
     // Setup canvas styles
-    ctx.strokeStyle = '#555' // Slightly lighter for better visibility on dark background
-    ctx.fillStyle = '#ccc' // Lighter text for better visibility
+    ctx.strokeStyle = '#333' // Slightly lighter for better visibility on dark background
+    ctx.fillStyle = '#444' // Lighter text for better visibility
     ctx.font = '24px IBM Plex Mono, monospace'
     ctx.textAlign = 'center' // Center text on markers
     ctx.textBaseline = 'middle'
@@ -187,7 +189,7 @@ export class TimeMarkersLayer implements Layer {
 
           if (showLabels) {
             const label = level.format(currentDate)
-            ctx.fillText(label, x, level.yPosition - 15) // Position label above line start
+            ctx.fillText(label, x, level.yPosition + 35) // Position label above line start
           }
         }
 
@@ -206,8 +208,19 @@ export class TimeMarkersLayer implements Layer {
       }
     }
 
+    //Draw start time on left side of canvas
     ctx.fillStyle = '#666'
     ctx.font = '24px IBM Plex Mono'
+    ctx.textAlign = 'left'
+
+    for (const level of timeHierarchy) {
+      const startDate = level.getStart(viewStartDate)
+      const label = level.format(startDate)
+      ctx.fillText(label, 10, level.yPosition + FONT_SIZE)
+    }
+
+
+    ctx.fillStyle = '#666'
     const startLabel = new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
@@ -226,7 +239,10 @@ export class TimeMarkersLayer implements Layer {
       hour12: true,
     }).format(new Date(end))
 
-    ctx.fillText(`${startLabel} - ${endLabel}`, -10, height - 20)
+    ctx.textAlign = 'right'
+    ctx.fillText(endLabel, width - 10, height - 20)
+    ctx.textAlign = 'left'
+    ctx.fillText(startLabel, 10, height - 20)
 
     ctx.restore()
   }

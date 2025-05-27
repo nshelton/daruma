@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import MetadataPanel from './MetadataPanel'
-import { Layer, SelectedItem } from './layers/LayerTypes'
+import { Layer, SelectedItem, TimeRange as LayerTimeRange } from './layers/LayerTypes'
 import { SunlightLayer } from './layers/SunlightLayer'
 import { CurrentTimeIndicatorLayer } from './layers/CurrentTimeIndicatorLayer'
 import { MoonPhaseLayer } from './layers/MoonPhaseLayer'
@@ -11,6 +11,7 @@ import { ArcPoint } from '../../../types'
 const MS_PER_YEAR = 31536000000
 const MIN_ZOOM = 0.01
 const MAX_ZOOM = 8760
+const DEBOUNCE_DELAY = 500; // Milliseconds for debounce
 
 interface TimelinePanelProps {
   width?: number
@@ -43,43 +44,69 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     )
   })
 
+  const getVisibleTimeRange = useCallback((): LayerTimeRange => {
+    const timeWindow = MS_PER_YEAR / zoom
+    return {
+      start: centerTimestamp - timeWindow / 2,
+      end: centerTimestamp + timeWindow / 2,
+    }
+  }, [centerTimestamp, zoom])
+
+  const handleLocationData = useCallback((_event: unknown, receivedData: ArcPoint[]): void => {
+    const processedData = receivedData.map(p => ({
+      ...p,
+      time: new Date(p.time) 
+    }));
+    
+    setLayers(prevLayers => prevLayers.map(layer => {
+      if (layer.id === 'arcPoints' && layer instanceof ArcPointLayer) {
+        const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer);
+        newLayer.setData(processedData);
+        return newLayer;
+      }
+      return layer;
+    }));
+  }, []);
+
+  // Effect to setup IPC listener (runs once)
   useEffect(() => {
-    const handleLocationData = (
-      _event: unknown,
-      receivedData: ArcPoint[],
-    ): void => {
-      const processedData = receivedData.map((p) => ({
-        ...p,
-        time: new Date(p.time),
-      }))
-
-      setLayers((prevLayers) =>
-        prevLayers.map((layer) => {
-          if (layer.id === 'arcPoints' && layer instanceof ArcPointLayer) {
-            const newLayer = Object.assign(
-              Object.create(Object.getPrototypeOf(layer)),
-              layer,
-            )
-            newLayer.setData(processedData)
-            return newLayer
-          }
-          return layer
-        }),
-      )
-    }
-
-    window.electron.ipcRenderer.send('get-locations')
-    window.electron.ipcRenderer.on('location-data', handleLocationData)
-
+    window.electron.ipcRenderer.on('location-data', handleLocationData);
     return (): void => {
-      window.electron.ipcRenderer.removeListener(
-        'location-data',
-        handleLocationData,
-      )
-    }
-  }, [])
+      window.electron.ipcRenderer.removeListener('location-data', handleLocationData);
+    };
+  }, [handleLocationData]);
 
-  const toggleLayerVisibility = useCallback((layerId: string) => {
+  // Ref to store the debounce timer ID
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // useEffect for debounced fetching ArcPoint data via IPC
+  useEffect(() => {
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set a new timer
+    debounceTimerRef.current = setTimeout(() => {
+      const currentVisibleRange = getVisibleTimeRange();
+      console.log('Debounced: Requesting locations for range:', currentVisibleRange);
+      window.electron.ipcRenderer.send('get-locations-in-range', { 
+        start: currentVisibleRange.start,
+        end: currentVisibleRange.end
+      });
+    }, DEBOUNCE_DELAY);
+
+    // Cleanup function to clear timer if component unmounts or dependencies change before timer fires
+    return (): void => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  // Depend on centerTimestamp and zoom to recalculate when view changes.
+  // getVisibleTimeRange is not needed as a direct dependency here since we call it inside the debounced function.
+  }, [centerTimestamp, zoom, getVisibleTimeRange]);
+
+  const toggleLayerVisibility = useCallback((layerId: string): void => {
     setLayers((prevLayers) =>
       prevLayers.map((layer) => {
         if (layer.id === layerId) {
@@ -94,17 +121,6 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       }),
     )
   }, [])
-
-  const getVisibleTimeRange = useCallback((): {
-    start: number
-    end: number
-  } => {
-    const timeWindow = MS_PER_YEAR / zoom
-    return {
-      start: centerTimestamp - timeWindow / 2,
-      end: centerTimestamp + timeWindow / 2,
-    }
-  }, [centerTimestamp, zoom])
 
   const timestampToX = useCallback(
     (timestamp: number): number => {
@@ -124,7 +140,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     ctx.fillStyle = '#111'
     ctx.fillRect(0, 0, width, height)
 
-    const timeRange = getVisibleTimeRange()
+    const timeRangeForDraw = getVisibleTimeRange()
 
     const sortedLayers = [...layers].sort(
       (a, b) => (a.zIndex || 0) - (b.zIndex || 0),
@@ -132,7 +148,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
 
     sortedLayers.forEach((layer) => {
       if (layer.isVisible) {
-        layer.draw(ctx, timeRange, width, height, timestampToX)
+        layer.draw(ctx, timeRangeForDraw, width, height, timestampToX)
       }
     })
   }, [width, height, getVisibleTimeRange, layers, timestampToX])
@@ -144,7 +160,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       const rect = canvas.getBoundingClientRect()
       const canvasX = e.clientX - rect.left
       const canvasY = e.clientY - rect.top
-      const timeRange = getVisibleTimeRange()
+      const timeRangeOnClick = getVisibleTimeRange()
 
       let clickedItem: SelectedItem | null = null
       let highestZIndex = -Infinity
@@ -157,7 +173,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
         const item = layer.findClosestItem!(
           canvasX,
           canvasY,
-          timeRange,
+          timeRangeOnClick,
           timestampToX,
           height,
           width,
@@ -243,7 +259,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
         style={{
           position: 'absolute',
           top: '10px',
-          left: '10px',
+          right: '10px',
           zIndex: 20,
           background: 'rgba(255, 255, 255, 0.1)',
           padding: '5px',
@@ -257,8 +273,8 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
             style={{
               margin: '2px 5px',
               padding: '5px 8px',
-              background: layer.isVisible ? '#4CAF50' : '#f44336',
-              color: 'white',
+              background: layer.isVisible ? '#fff' : '#000',
+              color: layer.isVisible ? '#000' : '#fff',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -266,7 +282,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
             }}
             title={`Toggle ${layer.name}`}
           >
-            {layer.name} {layer.isVisible ? '' : '(Hidden)'}
+            {layer.name}
           </button>
         ))}
       </div>
