@@ -5,8 +5,7 @@ import { GoogleMapsOverlay as DeckOverlay } from '@deck.gl/google-maps'
 import { ArcPoint } from '../../../types'
 import { ScatterplotLayer } from '@deck.gl/layers'
 import { HeatmapLayer } from '@deck.gl/aggregation-layers'
-import { turboColorsUint8 } from '@renderer/ColorSchemes'
-import { GOOGLE_MAPS_API_KEY } from './secrets'
+import { GOOGLE_MAPS_API_KEY } from 'secrets'
 
 function GoogleDeckGLOverlay({ layers }) {
   const map = useMap()
@@ -40,12 +39,6 @@ export default function GoogleMapPanel({
 }: {
   data: ArcPoint[]
 }): JSX.Element {
-  // const [mapLoaded, setMapLoaded] = useState(false);
-
-  // const onMapLoad = useCallback(() => {
-  //   setMapLoaded(true);
-  // }, []);
-
   const points = data.map((d) => [d.lng, d.lat])
   console.log(points)
 

@@ -34,8 +34,8 @@ export function getAllEvents(
 export function getAllLocations(
   callback: (err: Error | null, locations: ArcPoint[]) => void,
 ): void {
-  // Define the SQL query
-  const query = 'SELECT * FROM locations'
+  // Define the SQL query with a limit of 1000 rows
+  const query = 'SELECT * FROM locations LIMIT 1000'
 
   // Execute the query
   db_locations.all<ArcPoint>(query, (err, rows) => {

@@ -20,7 +20,7 @@ const MetadataPanel: React.FC<MetadataPanelProps> = ({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#1a1a1a',
+        backgroundColor: 'rgba(0,0,0,0.5)',
         color: '#fff',
         padding: '20px',
         borderTop: '1px solid #333',

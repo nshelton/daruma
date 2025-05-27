@@ -45,11 +45,7 @@ const generateSampleData = (): TimelineData[] => {
 
 const TimelinePanelDemo: React.FC = () => {
   const data = generateSampleData()
-  return (
-    <TimelinePanel
-      data={data}
-    />
-  )
+  return <TimelinePanel data={data} />
 }
 
 export default TimelinePanelDemo
