@@ -1,10 +1,7 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import MetadataPanel from './MetadataPanel'
-import {
-  Layer,
-  SelectedItem,
-  TimeRange as LayerTimeRange,
-} from './layers/LayerTypes'
+import LayerVisibilityPanel from './LayerVisibilityPanel'
+import { Layer, SelectedItem, TimeRange as LayerTimeRange } from './layers/LayerTypes'
 import { SunlightLayer } from './layers/SunlightLayer'
 import { CurrentTimeIndicatorLayer } from './layers/CurrentTimeIndicatorLayer'
 import { MoonPhaseLayer } from './layers/MoonPhaseLayer'
@@ -12,18 +9,19 @@ import { TimeMarkersLayer } from './layers/TimeMarkersLayer'
 import { ArcPointLayer, ArcPointItem } from './layers/ArcPointLayer'
 import { EventLayer } from './layers/EventLayer'
 import { LocationMovementLayer } from './layers/LocationMovementLayer'
-import { ArcPoint, Event } from '../../../types'
+import { ArcPoint, Event, CustomEvent } from '../../../types'
+import { CustomEventsLayer, CustomEventItem } from './layers/CustomEventsLayer'
 
 const MS_PER_YEAR = 31536000000
 const MIN_ZOOM = 0.01
 const MAX_ZOOM = 8760
-const DRAGGABLE_CURSOR_GRAB_WIDTH = 10 // Pixels to check for grabbing the cursor
 
 interface TimelinePanelProps {
   width?: number
   height?: number
   arcPoints: ArcPoint[]
   events: Event[]
+  customEvents: CustomEvent[]
   onVisibleTimeRangeChange: (timeRange: LayerTimeRange) => void
   onArcPointSelect?: (point: ArcPoint) => void
 }
@@ -33,6 +31,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   height = window.innerHeight,
   arcPoints,
   events,
+  customEvents,
   onVisibleTimeRangeChange,
   onArcPointSelect,
 }): JSX.Element => {
@@ -42,12 +41,20 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouseX, setLastMouseX] = useState(0)
 
+  const [draggedItem, setDraggedItem] = useState<
+    (CustomEventItem & { part: 'left' | 'right' | 'body' }) | null
+  >(null)
+
+  const [hoveredItem, setHoveredItem] = useState<
+    (CustomEventItem & { part: 'left' | 'right' | 'body' }) | null
+  >(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null)
+  const [selectedCustomEvent, setSelectedCustomEvent] = useState<CustomEventItem | null>(null)
   const [isMetadataPanelVisible, setIsMetadataPanelVisible] = useState(false)
 
-  const [draggableCursorTime, setDraggableCursorTime] = useState<number | null>(
-    null,
-  ) // Timestamp for the draggable cursor
+  const [draggableCursorTime, setDraggableCursorTime] = useState<number | null>(null) // Timestamp for the draggable cursor
   const [isDraggingCursor, setIsDraggingCursor] = useState(false) // Is the cursor being dragged?
 
   const [layers, setLayers] = useState<Layer[]>(() => {
@@ -58,11 +65,10 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       new ArcPointLayer([]),
       new LocationMovementLayer([]),
       new EventLayer([]),
+      new CustomEventsLayer(),
       new CurrentTimeIndicatorLayer(),
     ]
-    return initial.map((l) =>
-      Object.assign(Object.create(Object.getPrototypeOf(l)), l),
-    )
+    return initial.map(l => Object.assign(Object.create(Object.getPrototypeOf(l)), l))
   })
 
   const getVisibleTimeRange = useCallback((): LayerTimeRange => {
@@ -73,26 +79,27 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     }
   }, [centerTimestamp, zoom])
 
+  const updateCustomEvent = (updatedEvent: CustomEvent): void => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    debounceTimerRef.current = setTimeout(() => {
+      window.electron.ipcRenderer.send('update-custom-event', updatedEvent)
+    }, 500) // 500ms debounce
+  }
+
   useEffect(() => {
-    const processedData = arcPoints.map((p) => ({
+    const processedData = arcPoints.map(p => ({
       ...p,
       time: new Date(p.time),
     }))
-    setLayers((prevLayers) =>
-      prevLayers.map((layer) => {
+    setLayers(prevLayers =>
+      prevLayers.map(layer => {
         if (layer.id === 'arcPoints' && layer instanceof ArcPointLayer) {
-          const newLayer = Object.assign(
-            Object.create(Object.getPrototypeOf(layer)),
-            layer,
-          )
+          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
           newLayer.setData(processedData)
           return newLayer
         }
         if (layer.id === 'locationMovement' && layer instanceof LocationMovementLayer) {
-          const newLayer = Object.assign(
-            Object.create(Object.getPrototypeOf(layer)),
-            layer,
-          )
+          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
           newLayer.setData(processedData)
           return newLayer
         }
@@ -102,18 +109,39 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   }, [arcPoints])
 
   useEffect(() => {
-    const processedEvents = events.map((e) => ({
+    setLayers(prevLayers =>
+      prevLayers.map(layer => {
+        if (layer.id === 'customEvents' && layer instanceof CustomEventsLayer) {
+          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
+          newLayer.setData(customEvents)
+          return newLayer
+        }
+        return layer
+      }),
+    )
+  }, [customEvents])
+
+  const handleAddCustomEvent = useCallback(() => {
+    const newEvent: Omit<CustomEvent, 'id'> = {
+      title: 'New Event',
+      color: '#FF0000', // Default color
+      startTime: centerTimestamp - 1000 * 60 * 30, // 30 minutes before center
+      endTime: centerTimestamp + 1000 * 60 * 30, // 30 minutes after center
+      y: 100, // Default y position from bottom
+    }
+    window.electron.ipcRenderer.send('create-custom-event', newEvent)
+  }, [centerTimestamp])
+
+  useEffect(() => {
+    const processedEvents = events.map(e => ({
       ...e,
       start: new Date(e.start),
       end: new Date(e.end),
     }))
-    setLayers((prevLayers) =>
-      prevLayers.map((layer) => {
+    setLayers(prevLayers =>
+      prevLayers.map(layer => {
         if (layer.id === 'events' && layer instanceof EventLayer) {
-          const newLayer = Object.assign(
-            Object.create(Object.getPrototypeOf(layer)),
-            layer,
-          )
+          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
           newLayer.setData(processedEvents)
           return newLayer
         }
@@ -128,22 +156,13 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   }, [centerTimestamp, zoom, getVisibleTimeRange, onVisibleTimeRangeChange])
 
   useEffect(() => {
-    if (
-      draggableCursorTime !== null &&
-      layers &&
-      setSelectedItem &&
-      setIsMetadataPanelVisible
-    ) {
+    if (draggableCursorTime !== null && layers && setSelectedItem && setIsMetadataPanelVisible) {
       const arcPointLayer = layers.find(
-        (layer) => layer.id === 'arcPoints' && layer instanceof ArcPointLayer,
+        layer => layer.id === 'arcPoints' && layer instanceof ArcPointLayer,
       ) as ArcPointLayer | undefined
 
-      if (
-        arcPointLayer &&
-        typeof arcPointLayer.findItemClosestToTime === 'function'
-      ) {
-        const closestItem =
-          arcPointLayer.findItemClosestToTime(draggableCursorTime)
+      if (arcPointLayer && typeof arcPointLayer.findItemClosestToTime === 'function') {
+        const closestItem = arcPointLayer.findItemClosestToTime(draggableCursorTime)
 
         if (closestItem) {
           setSelectedItem(closestItem) // Select the item
@@ -173,22 +192,13 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       }
     }
     // Do not clear selection if draggableCursorTime becomes null, user might be just removing cursor
-  }, [
-    draggableCursorTime,
-    layers,
-    setSelectedItem,
-    setIsMetadataPanelVisible,
-    onArcPointSelect,
-  ])
+  }, [draggableCursorTime, layers, setSelectedItem, setIsMetadataPanelVisible, onArcPointSelect])
 
   const toggleLayerVisibility = useCallback((layerId: string): void => {
-    setLayers((prevLayers) =>
-      prevLayers.map((layer) => {
+    setLayers(prevLayers =>
+      prevLayers.map(layer => {
         if (layer.id === layerId) {
-          const newLayerState = Object.assign(
-            Object.create(Object.getPrototypeOf(layer)),
-            layer,
-          )
+          const newLayerState = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
           newLayerState.isVisible = !layer.isVisible
           return newLayerState
         }
@@ -207,12 +217,99 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   )
 
   const xToTimestamp = useCallback(
-    (xPos: number): number => {
+    (x: number): number => {
       const { start, end } = getVisibleTimeRange()
-      if (width === 0) return start // Avoid division by zero, return start or some default
-      return (xPos / width) * (end - start) + start
+      const timeWindow = end - start
+      return start + (x / width) * timeWindow
     },
-    [width, getVisibleTimeRange],
+    [getVisibleTimeRange, width],
+  )
+
+  const findClickedItem = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current
+      if (!canvas) return null
+
+      const rect = canvas.getBoundingClientRect()
+      const canvasX = e.clientX - rect.left
+      const canvasY = e.clientY - rect.top
+      const timeRangeOnClick = getVisibleTimeRange()
+
+      const commonArgs = [
+        canvasX,
+        canvasY,
+        timeRangeOnClick,
+        timestampToX,
+        height,
+        width,
+        xToTimestamp,
+      ] as const
+
+      // Prioritize CustomEventsLayer
+      const customEventsLayer = layers.find(
+        l => l.id === 'customEvents' && l.isVisible && l.findClosestItem,
+      )
+      if (customEventsLayer) {
+        const item = customEventsLayer.findClosestItem!(...commonArgs)
+        if (item) {
+          return item as SelectedItem
+        }
+      }
+
+      // Then check other layers, sorted by zIndex
+      const otherLayers = layers
+        .filter(layer => layer.id !== 'customEvents' && layer.isVisible && layer.findClosestItem)
+        .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
+
+      for (const layer of otherLayers) {
+        const item = layer.findClosestItem!(...commonArgs)
+        if (item) {
+          return item as SelectedItem // First one found wins
+        }
+      }
+
+      return null
+    },
+    [layers, getVisibleTimeRange, timestampToX, height, width, xToTimestamp],
+  )
+
+  const handleCanvasClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (isDraggingCursor || isDragging) return
+
+      const clickedItem = findClickedItem(e)
+
+      if (clickedItem) {
+        if (clickedItem.layerId === 'customEvents') {
+          setSelectedCustomEvent(clickedItem as CustomEventItem)
+        } else {
+          setSelectedCustomEvent(null)
+        }
+        setSelectedItem(clickedItem)
+        setIsMetadataPanelVisible(true)
+        if (clickedItem.layerId === 'arcPoints' && onArcPointSelect) {
+          const arcPointItem = clickedItem as ArcPointItem
+
+          if (
+            arcPointItem.lat !== undefined &&
+            arcPointItem.lng !== undefined &&
+            arcPointItem.id !== undefined
+          ) {
+            const arcPointToSelect: ArcPoint = {
+              lat: arcPointItem.lat,
+              lng: arcPointItem.lng,
+              time: new Date(arcPointItem.id as number),
+            }
+            onArcPointSelect(arcPointToSelect)
+          }
+        }
+      } else {
+        setSelectedItem(null)
+        setSelectedCustomEvent(null)
+        setIsMetadataPanelVisible(false)
+      }
+    },
+    [findClickedItem, onArcPointSelect],
   )
 
   const render = useCallback((): void => {
@@ -226,11 +323,9 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
 
     const timeRangeForDraw = getVisibleTimeRange()
 
-    const sortedLayers = [...layers].sort(
-      (a, b) => (a.zIndex || 0) - (b.zIndex || 0),
-    )
+    const sortedLayers = [...layers].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
 
-    sortedLayers.forEach((layer) => {
+    sortedLayers.forEach(layer => {
       if (layer.isVisible) {
         layer.draw(ctx, timeRangeForDraw, width, height, timestampToX)
       }
@@ -251,211 +346,204 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
         ctx.restore()
       }
     }
-  }, [
-    width,
-    height,
-    getVisibleTimeRange,
-    layers,
-    timestampToX,
-    draggableCursorTime,
-  ])
-
-  const handleCanvasClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const canvas = canvasRef.current
-      if (!canvas || isDraggingCursor || isDragging) return
-
-      const rect = canvas.getBoundingClientRect()
-      const canvasX = e.clientX - rect.left
-      const canvasY = e.clientY - rect.top
-      const timeRangeOnClick = getVisibleTimeRange()
-      let clickedItem: SelectedItem | null = null
-      let highestZIndex = -Infinity
-
-      const interactiveLayers = layers
-        .filter((layer) => layer.isVisible && layer.findClosestItem)
-        .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
-
-      for (const layer of interactiveLayers) {
-        const item = layer.findClosestItem!(
-          canvasX,
-          canvasY,
-          timeRangeOnClick,
-          timestampToX,
-          height,
-          width,
-        )
-        if (item) {
-          if ((layer.zIndex || 0) >= highestZIndex) {
-            clickedItem = item as SelectedItem
-            highestZIndex = layer.zIndex || 0
-          }
-        }
-      }
-
-      if (clickedItem) {
-        setSelectedItem(clickedItem)
-        setIsMetadataPanelVisible(true)
-
-        if (onArcPointSelect && clickedItem.layerId === 'arcPoints') {
-          const arcPointItem = clickedItem as ArcPointItem
-
-          if (
-            arcPointItem.lat !== undefined &&
-            arcPointItem.lng !== undefined &&
-            arcPointItem.id !== undefined
-          ) {
-            const arcPointToSelect: ArcPoint = {
-              lat: arcPointItem.lat,
-              lng: arcPointItem.lng,
-              time: new Date(arcPointItem.id as number),
-            }
-            onArcPointSelect(arcPointToSelect)
-          }
-        }
-      } else {
-        setSelectedItem(null)
-        setIsMetadataPanelVisible(false)
-      }
-    },
-    [
-      layers,
-      getVisibleTimeRange,
-      timestampToX,
-      height,
-      width,
-      onArcPointSelect,
-      setIsMetadataPanelVisible,
-      setSelectedItem,
-      isDragging,
-      isDraggingCursor,
-    ],
-  )
+  }, [width, height, getVisibleTimeRange, layers, timestampToX, draggableCursorTime])
 
   const handleWheel = useCallback(
     (e: WheelEvent): void => {
       e.preventDefault()
       const zoomFactor = 1.1
       const newZoom =
-        e.deltaY > 0
-          ? Math.max(MIN_ZOOM, zoom / zoomFactor)
-          : Math.min(MAX_ZOOM, zoom * zoomFactor)
+        e.deltaY > 0 ? Math.max(MIN_ZOOM, zoom / zoomFactor) : Math.min(MAX_ZOOM, zoom * zoomFactor)
       setZoom(newZoom)
     },
     [zoom, setZoom],
   )
 
-  useEffect(() => {
+  useEffect((): (() => void) => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas) return () => {}
     canvas.addEventListener('wheel', handleWheel, { passive: false })
     return () => canvas.removeEventListener('wheel', handleWheel)
   }, [handleWheel])
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>): void => {
+    (event: React.MouseEvent<HTMLCanvasElement>): void => {
+      const { clientX } = event
       const canvas = canvasRef.current
       if (!canvas) return
       const rect = canvas.getBoundingClientRect()
-      const clickX = e.clientX - rect.left
-      let clickedOnExistingCursorArea = false
-      if (draggableCursorTime !== null) {
-        const cursorLineX = timestampToX(draggableCursorTime)
-        if (Math.abs(clickX - cursorLineX) < DRAGGABLE_CURSOR_GRAB_WIDTH / 2) {
-          clickedOnExistingCursorArea = true
-        }
+      const canvasX = clientX - rect.left
+
+      if (hoveredItem && selectedCustomEvent) {
+        setDraggedItem(hoveredItem)
+        return
       }
-      if (clickedOnExistingCursorArea) {
+
+      // Check for current time indicator drag
+      const visibleTimeRange = getVisibleTimeRange()
+      const currentTimeIndicatorLayer = layers.find(
+        l => l.id === 'currentTime' && l instanceof CurrentTimeIndicatorLayer,
+      ) as CurrentTimeIndicatorLayer | undefined
+
+      if (currentTimeIndicatorLayer?.isDraggable(canvasX, visibleTimeRange, timestampToX)) {
         setIsDraggingCursor(true)
-        setIsDragging(false)
-      } else {
-        if (draggableCursorTime === null) {
-          const newCursorTime = xToTimestamp(clickX)
-          setDraggableCursorTime(newCursorTime)
-          setIsDraggingCursor(true)
-          setIsDragging(false)
-        } else {
-          setIsDragging(true)
-          setIsDraggingCursor(false)
-        }
+        setDraggableCursorTime(xToTimestamp(canvasX))
+        setLastMouseX(clientX)
+        return
       }
-      setLastMouseX(e.clientX)
+
+      // If nothing else is interactive, start panning
+      setIsDragging(true)
+      setLastMouseX(clientX)
     },
-    [
-      draggableCursorTime,
-      timestampToX,
-      xToTimestamp,
-      setIsDraggingCursor,
-      setDraggableCursorTime,
-      setIsDragging,
-      setLastMouseX,
-      canvasRef,
-      DRAGGABLE_CURSOR_GRAB_WIDTH,
-      width,
-    ],
+    [hoveredItem, selectedCustomEvent, getVisibleTimeRange, layers, timestampToX, xToTimestamp],
   )
 
   const handleMouseMove = useCallback(
     (event: MouseEvent): void => {
       const canvas = canvasRef.current
       if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
+      const canvasX = event.clientX - rect.left
+      const canvasY = event.clientY - rect.top
+      const visibleTimeRange = getVisibleTimeRange()
 
-      if (isDraggingCursor) {
-        const rect = canvas.getBoundingClientRect()
-        const x = event.clientX - rect.left
-        const clampedX = Math.max(0, Math.min(x, width))
-        setDraggableCursorTime(xToTimestamp(clampedX))
+      if (draggedItem && selectedCustomEvent) {
+        const timeAtMouse = xToTimestamp(canvasX)
+        const customEventsLayer = layers.find(
+          l => l.id === 'customEvents' && l instanceof CustomEventsLayer,
+        ) as CustomEventsLayer
+
+        if (customEventsLayer) {
+          const events = customEventsLayer.getEvents()
+          const eventToUpdate = events.find(e => e.id === draggedItem.id)
+          if (eventToUpdate) {
+            switch (draggedItem.part) {
+              case 'left':
+                eventToUpdate.startTime = timeAtMouse
+                break
+              case 'right':
+                eventToUpdate.endTime = timeAtMouse
+                break
+              case 'body': {
+                const itemStartTime = draggedItem.startTime!
+                const itemEndTime = draggedItem.endTime!
+                const duration = itemEndTime - itemStartTime
+                eventToUpdate.startTime = timeAtMouse - duration / 2
+                eventToUpdate.endTime = timeAtMouse + duration / 2
+                eventToUpdate.y = height - canvasY - 10 // Quick implementation for y-drag
+                break
+              }
+            }
+            customEventsLayer.setData([...events]) // force re-render
+            render()
+          }
+        }
+      } else if (isDraggingCursor) {
+        const time = xToTimestamp(event.clientX - rect.left)
+        setDraggableCursorTime(time)
       } else if (isDragging) {
         const deltaX = event.clientX - lastMouseX
         if (width === 0 || zoom === 0) return
         const timeDelta = (deltaX / width) * (MS_PER_YEAR / zoom)
-        setCenterTimestamp(
-          (prevCenterTimestamp) => prevCenterTimestamp - timeDelta,
-        )
+        setCenterTimestamp(prev => prev - timeDelta)
         setLastMouseX(event.clientX)
+      } else {
+        // Hover logic
+        if (selectedCustomEvent) {
+          const customEventsLayer = layers.find(
+            l => l.id === 'customEvents' && l instanceof CustomEventsLayer,
+          ) as CustomEventsLayer
+          if (customEventsLayer) {
+            const foundItem = customEventsLayer.findClosestItem(
+              canvasX,
+              canvasY,
+              visibleTimeRange,
+              timestampToX,
+              height,
+              width,
+              xToTimestamp,
+            )
+            if (foundItem && foundItem.id === selectedCustomEvent.id) {
+              setHoveredItem(foundItem)
+            } else {
+              setHoveredItem(null)
+            }
+          }
+        } else {
+          setHoveredItem(null)
+        }
       }
     },
     [
       isDraggingCursor,
       isDragging,
       xToTimestamp,
-      setDraggableCursorTime,
       lastMouseX,
       width,
       zoom,
-      MS_PER_YEAR,
       setCenterTimestamp,
-      setLastMouseX,
-      canvasRef,
+      draggedItem,
+      layers,
+      selectedCustomEvent,
+      height,
+      render,
     ],
   )
 
   const handleMouseUp = useCallback((): void => {
+    if (draggedItem) {
+      const customEventsLayer = layers.find(
+        l => l.id === 'customEvents' && l instanceof CustomEventsLayer,
+      ) as CustomEventsLayer | undefined
+
+      if (customEventsLayer) {
+        const allEvents = customEventsLayer.getEvents()
+        const updatedEvent = allEvents.find(e => e.id === draggedItem.id)
+        if (updatedEvent) {
+          updateCustomEvent(updatedEvent)
+        }
+      }
+      setDraggedItem(null)
+    }
     if (isDraggingCursor) {
       setIsDraggingCursor(false)
     }
     if (isDragging) {
       setIsDragging(false)
     }
-  }, [isDraggingCursor, isDragging, setIsDraggingCursor, setIsDragging])
+  }, [isDragging, isDraggingCursor, draggedItem, layers, updateCustomEvent])
 
   useEffect((): (() => void) => {
-    if (isDragging || isDraggingCursor) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    } else {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
+    // Always listen to mouse move for hover effects
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
     return (): void => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, isDraggingCursor, handleMouseMove, handleMouseUp])
+  }, [handleMouseMove, handleMouseUp])
 
   useEffect(() => {
     render()
   }, [render])
+
+  const cursorStyle = useMemo(() => {
+    if (hoveredItem && (hoveredItem.part === 'left' || hoveredItem.part === 'right')) {
+      return 'ew-resize'
+    }
+    if (hoveredItem && hoveredItem.part === 'body') {
+      return 'move'
+    }
+    if (isDraggingCursor) {
+      return 'ew-resize'
+    }
+    if (isDragging) {
+      return 'grabbing'
+    }
+    return 'grab'
+  }, [hoveredItem, isDraggingCursor, isDragging])
 
   return (
     <div
@@ -465,37 +553,19 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
         height: `${height}px`,
       }}
     >
-      <div
+      <button
+        onClick={handleAddCustomEvent}
         style={{
           position: 'absolute',
-          top: '10px',
+          top: '50px',
           right: '10px',
           zIndex: 20,
-          background: 'rgba(255, 255, 255, 0.1)',
-          padding: '5px',
-          borderRadius: '5px',
+          padding: '5px 10px',
         }}
       >
-        {layers.map((layer) => (
-          <button
-            key={layer.id}
-            onClick={() => toggleLayerVisibility(layer.id)}
-            style={{
-              margin: '2px 5px',
-              padding: '5px 8px',
-              background: layer.isVisible ? '#fff' : '#000',
-              color: layer.isVisible ? '#000' : '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              opacity: layer.isVisible ? 1 : 0.7,
-            }}
-            title={`Toggle ${layer.name}`}
-          >
-            {layer.name}
-          </button>
-        ))}
-      </div>
+        Add Custom Event
+      </button>
+      <LayerVisibilityPanel layers={layers} onToggle={toggleLayerVisibility} />
       {/* Draggable Cursor Time Display */}
       {draggableCursorTime !== null && (
         <div
@@ -528,40 +598,36 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
         }}
         onClick={handleCanvasClick}
         style={{
-          cursor: isDraggingCursor
-            ? 'ew-resize'
-            : isDragging
-              ? 'grabbing'
-              : 'grab',
+          cursor: cursorStyle,
         }}
       />
       <MetadataPanel
         isVisible={isMetadataPanelVisible}
-        metadata={
-          selectedItem
-            ? selectedItem.metadata || {
-                id: selectedItem.id,
-                layer: selectedItem.layerId,
-                timestamp: selectedItem.timestamp
-                  ? new Date(selectedItem.timestamp).toLocaleString()
-                  : undefined,
-                startTime: selectedItem.startTime
-                  ? new Date(selectedItem.startTime).toLocaleString()
-                  : undefined,
-                endTime: selectedItem.endTime
-                  ? new Date(selectedItem.endTime).toLocaleString()
-                  : undefined,
-                value:
-                  selectedItem &&
-                  Object.prototype.hasOwnProperty.call(selectedItem, 'value')
-                    ? selectedItem.value
-                    : undefined,
-              }
-            : {}
-        }
+        metadata={selectedItem}
         onClose={(): void => {
           setIsMetadataPanelVisible(false)
           setSelectedItem(null)
+        }}
+        onUpdate={updatedData => {
+          if (selectedItem && selectedItem.layerId === 'customEvents') {
+            const updatedItem = {
+              ...selectedItem,
+              ...updatedData,
+            }
+            const eventToUpdate: CustomEvent = {
+              id: updatedItem.id as number,
+              title: updatedItem.title as string,
+              color: updatedItem.color as string,
+              startTime: updatedItem.startTime as number,
+              endTime: updatedItem.endTime as number,
+              y: updatedItem.y as number,
+            }
+            updateCustomEvent(eventToUpdate)
+            setSelectedItem(updatedItem)
+          }
+        }}
+        onDelete={id => {
+          window.electron.ipcRenderer.send('delete-custom-event', id)
         }}
       />
     </div>

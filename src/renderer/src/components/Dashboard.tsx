@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { TimelinePanel } from './TimelinePanel'
 // import GoogleMapPanel from './GoogleMapPanel' // No longer used
 // import MapPanel from './MapPanel' // Remove this if it exists and is unused - REMOVED
-import { ArcPoint, Event } from '../../../types'
+import { ArcPoint, Event, CustomEvent } from '../../../types'
 import { TimeRange as LayerTimeRange } from './layers/LayerTypes'
 import GoogleMapPanel from './GoogleMapPanel'
 
@@ -15,69 +15,81 @@ interface DashboardProps extends Record<string, never> {
 export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
   const [arcPoints, setArcPoints] = useState<ArcPoint[]>([])
   const [events, setEvents] = useState<Event[]>([])
-  const [currentTimelineRange, setCurrentTimelineRange] =
-    useState<LayerTimeRange | null>(null)
-  const [selectedArcPointForMap, setSelectedArcPointForMap] =
-    useState<ArcPoint | null>(null)
+  const [customEvents, setCustomEvents] = useState<CustomEvent[]>([])
+  const [currentTimelineRange, setCurrentTimelineRange] = useState<LayerTimeRange | null>(null)
+  const [selectedArcPointForMap, setSelectedArcPointForMap] = useState<ArcPoint | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // IPC listener for location data
-  const handleLocationData = useCallback(
-    (_event: unknown, receivedData: ArcPoint[]): void => {
-      console.log(
-        'Dashboard received location-data:',
-        receivedData.length,
-        'points',
-      )
-      // Ensure time is a Date object if it's not already
-      const processedData = receivedData.map((p) => ({
-        ...p,
-        time: new Date(p.time), // Ensure time is a Date object
-      }))
-      setArcPoints(processedData)
-    },
-    [],
-  )
+  const handleLocationData = useCallback((_event: unknown, receivedData: ArcPoint[]): void => {
+    console.log('Dashboard received location-data:', receivedData.length, 'points')
+    // Ensure time is a Date object if it's not already
+    const processedData = receivedData.map(p => ({
+      ...p,
+      time: new Date(p.time), // Ensure time is a Date object
+    }))
+    setArcPoints(processedData)
+  }, [])
 
   // IPC listener for event data
-  const handleEventData = useCallback(
-    (_event: unknown, receivedData: Event[]): void => {
-      console.log(
-        'Dashboard received event-data:',
-        receivedData.length,
-        'events',
-      )
-      const processedData = receivedData.map((e) => ({
-        ...e,
-        start: new Date(e.start), // Ensure start is a Date object
-        end: new Date(e.end), // Ensure end is a Date object
-      }))
-      setEvents(processedData)
+  const handleEventData = useCallback((_event: unknown, receivedData: Event[]): void => {
+    console.log('Dashboard received event-data:', receivedData.length, 'events')
+    const processedData = receivedData.map(e => ({
+      ...e,
+      start: new Date(e.start), // Ensure start is a Date object
+      end: new Date(e.end), // Ensure end is a Date object
+    }))
+    setEvents(processedData)
+  }, [])
+
+  const handleCustomEventData = useCallback(
+    (_event: unknown, receivedData: CustomEvent[]): void => {
+      setCustomEvents(receivedData)
     },
     [],
   )
 
   useEffect(() => {
-    const locationListener = (
-      _event: unknown,
-      receivedData: ArcPoint[],
-    ): void => handleLocationData(_event, receivedData)
+    const locationListener = (_event: unknown, receivedData: ArcPoint[]): void =>
+      handleLocationData(_event, receivedData)
     window.electron.ipcRenderer.on('location-data', locationListener)
 
     const eventListener = (_event: unknown, receivedData: Event[]): void =>
       handleEventData(_event, receivedData)
     window.electron.ipcRenderer.on('event-data', eventListener)
+
+    const customEventListener = (_event: unknown, receivedData: CustomEvent[]): void =>
+      handleCustomEventData(_event, receivedData)
+    window.electron.ipcRenderer.on('custom-event-data', customEventListener)
+
     // Request events when component mounts
     window.electron.ipcRenderer.send('get-events')
+    window.electron.ipcRenderer.send('get-custom-events')
+
+    const handleCustomEventCreated = (): void => {
+      window.electron.ipcRenderer.send('get-custom-events')
+    }
+    window.electron.ipcRenderer.on('custom-event-created', handleCustomEventCreated)
+
+    const handleCustomEventDeleted = (): void => {
+      window.electron.ipcRenderer.send('get-custom-events')
+    }
+    window.electron.ipcRenderer.on('custom-event-deleted', handleCustomEventDeleted)
+
+    const handleCustomEventUpdated = (): void => {
+      window.electron.ipcRenderer.send('get-custom-events')
+    }
+    window.electron.ipcRenderer.on('custom-event-updated', handleCustomEventUpdated)
 
     return (): void => {
-      window.electron.ipcRenderer.removeListener(
-        'location-data',
-        locationListener,
-      )
+      window.electron.ipcRenderer.removeListener('location-data', locationListener)
       window.electron.ipcRenderer.removeListener('event-data', eventListener)
+      window.electron.ipcRenderer.removeListener('custom-event-data', customEventListener)
+      window.electron.ipcRenderer.removeListener('custom-event-created', handleCustomEventCreated)
+      window.electron.ipcRenderer.removeListener('custom-event-deleted', handleCustomEventDeleted)
+      window.electron.ipcRenderer.removeListener('custom-event-updated', handleCustomEventUpdated)
     }
-  }, [handleLocationData, handleEventData])
+  }, [handleLocationData, handleEventData, handleCustomEventData])
 
   // Effect for debounced fetching ArcPoint data via IPC when timeline range changes
   useEffect(() => {
@@ -88,10 +100,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      console.log(
-        'Dashboard: Requesting locations for range:',
-        currentTimelineRange,
-      )
+      console.log('Dashboard: Requesting locations for range:', currentTimelineRange)
       window.electron.ipcRenderer.send('get-locations-in-range', {
         start: currentTimelineRange.start,
         end: currentTimelineRange.end,
@@ -105,12 +114,9 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
     }
   }, [currentTimelineRange])
 
-  const handleTimelineRangeChange = useCallback(
-    (timeRange: LayerTimeRange): void => {
-      setCurrentTimelineRange(timeRange)
-    },
-    [],
-  )
+  const handleTimelineRangeChange = useCallback((timeRange: LayerTimeRange): void => {
+    setCurrentTimelineRange(timeRange)
+  }, [])
 
   const handleArcPointSelect = useCallback((point: ArcPoint): void => {
     console.log('Dashboard: ArcPoint selected for map:', point)
@@ -146,6 +152,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
         <TimelinePanel
           arcPoints={arcPoints}
           events={events}
+          customEvents={customEvents}
           onVisibleTimeRangeChange={handleTimelineRangeChange}
           onArcPointSelect={handleArcPointSelect}
           width={panelWidth}

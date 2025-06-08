@@ -1,59 +1,147 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { SelectedItem } from './layers/LayerTypes'
 
 interface MetadataPanelProps {
   isVisible: boolean
-  metadata: any // We'll keep this as any for now to support different types of events
+  metadata: SelectedItem | null
   onClose: () => void
+  onUpdate: (updatedData: Partial<SelectedItem>) => void
+  onDelete: (id: number) => void
 }
 
 const MetadataPanel: React.FC<MetadataPanelProps> = ({
   isVisible,
   metadata,
   onClose,
+  onUpdate,
+  onDelete,
 }) => {
-  if (!isVisible) return null
+  const [editableMetadata, setEditableMetadata] = useState<SelectedItem | null>(metadata)
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  useEffect(() => {
+    setEditableMetadata(metadata)
+  }, [metadata])
+
+  const handleInputChange = (key: string, value: string): void => {
+    if (!editableMetadata) return
+    const newMetadata = { ...editableMetadata, [key]: value }
+    setEditableMetadata(newMetadata)
+
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => {
+      onUpdate(newMetadata)
+    }, 500) // 500ms debounce
+  }
+
+  if (!isVisible || !editableMetadata) return null
+
+  const renderValue = (key: string, value: unknown): React.ReactNode => {
+    if (editableMetadata.layerId === 'customEvents') {
+      if (key === 'title') {
+        return (
+          <input
+            type="text"
+            value={value as string}
+            onChange={e => handleInputChange(key, e.target.value)}
+            style={{ background: '#333', color: '#fff', border: '1px solid #555' }}
+          />
+        )
+      }
+      if (key === 'color') {
+        return (
+          <input
+            type="color"
+            value={value as string}
+            onChange={e => handleInputChange(key, e.target.value)}
+            style={{ background: '#333', border: '1px solid #555' }}
+          />
+        )
+      }
+    }
+    return String(value)
+  }
 
   return (
     <div
       style={{
         position: 'fixed',
+        top: '50vh',
         bottom: 0,
-        left: 0,
         right: 0,
+        width: isCollapsed ? '60px' : '200px',
         backgroundColor: 'rgba(0,0,0,0.5)',
         color: '#fff',
         padding: '20px',
-        borderTop: '1px solid #333',
-        maxHeight: '30vh',
+        borderLeft: '1px solid #333',
         overflowY: 'auto',
         fontFamily: 'IBM Plex Mono',
         zIndex: 1000,
-        transition: 'transform 0.3s ease-in-out',
-        transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
+        transition: 'transform 0.3s ease-in-out, width 0.3s ease-in-out',
+        transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
       }}
     >
-      <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#666',
-            cursor: 'pointer',
-            fontSize: '20px',
-          }}
-        >
-          ×
-        </button>
-      </div>
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          background: 'none',
+          border: 'none',
+          color: '#999',
+          cursor: 'pointer',
+          fontSize: '24px',
+          lineHeight: 1,
+          padding: 0,
+          zIndex: 1001,
+        }}
+      >
+        {isCollapsed ? '«' : '»'}
+      </button>
 
-      <div style={{ marginTop: '20px' }}>
-        {Object.entries(metadata).map(([key, value]) => (
-          <div key={key} style={{ marginBottom: '10px' }}>
-            <span style={{ color: '#666' }}>{key}: </span>
-            <span>{String(value)}</span>
-          </div>
-        ))}
+      <div style={{ visibility: isCollapsed ? 'hidden' : 'visible' }}>
+        <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#666',
+              cursor: 'pointer',
+              fontSize: '20px',
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {editableMetadata.layerId === 'customEvents' && (
+          <button
+            onClick={() => onDelete(editableMetadata.id as number)}
+            style={{
+              position: 'absolute',
+              bottom: '10px',
+              right: '10px',
+              background: 'darkred',
+              color: 'white',
+              border: 'none',
+              padding: '5px 10px',
+            }}
+          >
+            Delete
+          </button>
+        )}
+
+        <div style={{ marginTop: '20px' }}>
+          {Object.entries(editableMetadata).map(([key, value]) => (
+            <div key={key} style={{ marginBottom: '10px' }}>
+              <span style={{ color: '#666' }}>{key}: </span>
+              <span>{renderValue(key, value)}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

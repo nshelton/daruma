@@ -5,9 +5,14 @@ import {
   getAllEvents,
   getAllLocationsInRange,
   initializeAllLocationsCache,
+  initializeCustomEventsDb,
+  getAllCustomEvents,
+  createCustomEvent,
+  updateCustomEvent,
+  deleteCustomEvent,
 } from './db'
 import icon from '../../resources/icon.png?asset'
-import { Event } from '../types'
+import { Event, CustomEvent } from '../types'
 
 function createWindow(): void {
   // Create the browser window.
@@ -27,7 +32,7 @@ function createWindow(): void {
     mainWindow.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  mainWindow.webContents.setWindowOpenHandler(details => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -57,17 +62,18 @@ app.whenReady().then(() => {
     if (err) {
       console.error('Failed to initialize location cache:', err)
     } else {
-      console.log(
-        `Location cache initialized successfully with ${count} items.`,
-      )
+      console.log(`Location cache initialized successfully with ${count} items.`)
     }
   })
+
+  // Initialize the custom events database
+  initializeCustomEventsDb()
 
   // Create the main window
   createWindow()
 
   // Set up other IPC handlers
-  ipcMain.on('get-events', (event) => {
+  ipcMain.on('get-events', event => {
     console.log('get-events')
     getAllEvents((err: Error | null, data: Event[]) => {
       if (err) {
@@ -79,35 +85,69 @@ app.whenReady().then(() => {
     })
   })
 
-  // Updated IPC handler for locations
-  ipcMain.on(
-    'get-locations-in-range',
-    (event, timeRange: { start: number; end: number }) => {
-      if (
-        !timeRange ||
-        typeof timeRange.start !== 'number' ||
-        typeof timeRange.end !== 'number'
-      ) {
-        console.error(
-          'Invalid timeRange received for get-locations-in-range:',
-          timeRange,
-        )
-        event.reply('location-data', []) // Send empty array or error
+  ipcMain.on('get-custom-events', event => {
+    getAllCustomEvents((err: Error | null, data: CustomEvent[]) => {
+      if (err) {
+        console.error('Error fetching custom events:', err)
+        event.reply('custom-event-data', [])
         return
       }
-      console.log(
-        `get-locations-in-range: ${new Date(timeRange.start).toISOString()} to ${new Date(timeRange.end).toISOString()}`,
-      )
-      getAllLocationsInRange(timeRange.start, timeRange.end, (err, data) => {
-        if (err) {
-          console.error('Error fetching locations:', err)
-          event.reply('location-data', []) // Send empty on error
-          return
-        }
-        event.reply('location-data', data)
-      })
-    },
-  )
+      event.reply('custom-event-data', data)
+    })
+  })
+
+  ipcMain.on('create-custom-event', (event, customEvent: Omit<CustomEvent, 'id'>) => {
+    createCustomEvent(customEvent, (err, newId) => {
+      if (err) {
+        console.error('Error creating custom event:', err)
+        event.reply('custom-event-created', { error: err.message })
+        return
+      }
+      event.reply('custom-event-created', { id: newId })
+    })
+  })
+
+  ipcMain.on('update-custom-event', (event, customEvent: CustomEvent) => {
+    updateCustomEvent(customEvent, err => {
+      if (err) {
+        console.error('Error updating custom event:', err)
+        event.reply('custom-event-updated', { error: err.message })
+        return
+      }
+      event.reply('custom-event-updated', { id: customEvent.id })
+    })
+  })
+
+  ipcMain.on('delete-custom-event', (event, id: number) => {
+    deleteCustomEvent(id, err => {
+      if (err) {
+        console.error('Error deleting custom event:', err)
+        event.reply('custom-event-deleted', { error: err.message })
+        return
+      }
+      event.reply('custom-event-deleted', { id })
+    })
+  })
+
+  // Updated IPC handler for locations
+  ipcMain.on('get-locations-in-range', (event, timeRange: { start: number; end: number }) => {
+    if (!timeRange || typeof timeRange.start !== 'number' || typeof timeRange.end !== 'number') {
+      console.error('Invalid timeRange received for get-locations-in-range:', timeRange)
+      event.reply('location-data', []) // Send empty array or error
+      return
+    }
+    console.log(
+      `get-locations-in-range: ${new Date(timeRange.start).toISOString()} to ${new Date(timeRange.end).toISOString()}`,
+    )
+    getAllLocationsInRange(timeRange.start, timeRange.end, (err, data) => {
+      if (err) {
+        console.error('Error fetching locations:', err)
+        event.reply('location-data', []) // Send empty on error
+        return
+      }
+      event.reply('location-data', data)
+    })
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import { APIProvider, Map, useMap, MapCameraChangedEvent } from '@vis.gl/react-google-maps'
-import {
-  GoogleMapsOverlay as DeckOverlay,
-  GoogleMapsOverlayProps,
-} from '@deck.gl/google-maps'
+import { GoogleMapsOverlay as DeckOverlay, GoogleMapsOverlayProps } from '@deck.gl/google-maps'
 import { ArcPoint } from '../../../types'
 import { ScatterplotLayer } from '@deck.gl/layers'
 import { GOOGLE_MAPS_API_KEY } from './secrets'
@@ -20,9 +17,7 @@ interface GoogleDeckGLOverlayComponentProps {
   layers: ScatterplotLayer<number[]>[] // Made layer type more specific
 }
 
-function GoogleDeckGLOverlay({
-  layers,
-}: GoogleDeckGLOverlayComponentProps): null {
+function GoogleDeckGLOverlay({ layers }: GoogleDeckGLOverlayComponentProps): null {
   const map = useMap()
   const [overlay, setOverlay] = useState<DeckOverlay | null>(null)
 
@@ -58,7 +53,7 @@ export default function GoogleMapPanel({
   targetPoint = null,
   onTargetProcessed,
 }: GoogleMapPanelProps): JSX.Element {
-  const points = data.map((d) => [d.lng, d.lat])
+  const points = data.map(d => [d.lng, d.lat])
 
   const [currentCenter, setCurrentCenter] = useState({ lat: 34.08, lng: -118.29 })
   const [currentZoom, setCurrentZoom] = useState(10)
@@ -73,7 +68,7 @@ export default function GoogleMapPanel({
         onTargetProcessed()
       }
       const timer = setTimeout(() => setIsProgrammaticViewSet(false), 50)
-      return () => clearTimeout(timer)
+      return (): void => clearTimeout(timer)
     }
   }, [targetPoint, onTargetProcessed])
 

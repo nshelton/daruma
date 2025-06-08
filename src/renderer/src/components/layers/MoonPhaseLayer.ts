@@ -31,9 +31,7 @@ export class MoonPhaseLayer implements Layer {
 
     for (let xPixel = 0; xPixel < width; xPixel++) {
       const currentTime = timeRange.start + xPixel * timeStep
-      const moonIllumination = SunCalc.getMoonIllumination(
-        new Date(currentTime),
-      )
+      const moonIllumination = SunCalc.getMoonIllumination(new Date(currentTime))
       const fraction = moonIllumination.fraction // Illuminated fraction (0 to 1)
 
       // Map fraction (0 to 1) to the wave height.

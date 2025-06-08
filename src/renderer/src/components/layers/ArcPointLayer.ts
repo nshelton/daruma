@@ -43,7 +43,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
 
     const { start, end } = timeRange
     const visibleData = this.arcData.filter(
-      (point) => point.time.getTime() >= start && point.time.getTime() <= end,
+      point => point.time.getTime() >= start && point.time.getTime() <= end,
     )
 
     const maxPoints = Math.floor(width / 2)
@@ -60,7 +60,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
     }
 
     ctx.save()
-    dataToDraw.forEach((point) => {
+    dataToDraw.forEach(point => {
       const pointTimestamp = point.time.getTime()
       const x = timestampToX(pointTimestamp)
       const y = height / 2
@@ -75,9 +75,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
       ctx.beginPath()
       const radius = isSelected ? 7 : 5
       ctx.arc(x, y, radius, 0, Math.PI * 2)
-      ctx.fillStyle = isSelected
-        ? 'rgba(255, 105, 180, 1)'
-        : 'rgba(152, 251, 152, 0.8)'
+      ctx.fillStyle = isSelected ? 'rgba(255, 105, 180, 1)' : 'rgba(152, 251, 152, 0.8)'
       ctx.fill()
     })
     ctx.restore()
@@ -110,9 +108,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
       const pointTimestamp = point.time.getTime()
       const pointX = timestampToX(pointTimestamp)
       const pointY = canvasHeight / 2
-      const distance = Math.sqrt(
-        Math.pow(pointX - canvasX, 2) + Math.pow(pointY - canvasY, 2),
-      )
+      const distance = Math.sqrt(Math.pow(pointX - canvasX, 2) + Math.pow(pointY - canvasY, 2))
 
       if (distance < maxDistance && distance < minDistance) {
         minDistance = distance
@@ -139,10 +135,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
       if (Object.prototype.hasOwnProperty.call(finalPoint, 'value')) {
         item.value = finalPoint.value
       }
-      if (
-        Object.prototype.hasOwnProperty.call(finalPoint, 'metadata') &&
-        finalPoint.metadata
-      ) {
+      if (Object.prototype.hasOwnProperty.call(finalPoint, 'metadata') && finalPoint.metadata) {
         item.metadata = finalPoint.metadata
       } else {
         item.metadata = { originalTimestamp: finalPoint.time.getTime() }

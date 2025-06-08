@@ -13,7 +13,7 @@ export class EventLayer implements Layer {
   }
 
   setData(events: Event[]): void {
-    this.events = events.map((e) => ({
+    this.events = events.map(e => ({
       ...e,
       start: new Date(e.start),
       end: new Date(e.end),
@@ -22,24 +22,23 @@ export class EventLayer implements Layer {
 
   draw(
     ctx: CanvasRenderingContext2D,
-    _timeRange: TimeRange, // _timeRange is not directly used for drawing individual events
+    _timeRange: TimeRange,
     canvasWidth: number,
-    _canvasHeight: number, // _canvasHeight is not directly used for y-positioning based on new reqs
+    _canvasHeight: number,
     timestampToX: (timestamp: number) => number,
   ): void {
     const eventHeight = 20 // Height of the event rectangle
     const baseYPosition = 200 // 100px from the top
 
-    const eventTypeStyles: Record<string, { color: string; yOffset: number }> =
-      {
-        charging: { color: 'rgba(128, 255, 128, 0.5)', yOffset: 20 },
-        home: { color: 'rgba(100, 125, 255, 0.5)', yOffset: 0 },
-        heidi: { color: 'rgba(255, 100, 255, 0.5)', yOffset: 60 },
-        wifi: { color: 'rgba(100, 255, 255, 0.5)', yOffset: -10 },
-        default: { color: 'rgba(255, 0, 255, 0.5)', yOffset: 0 },
-      }
+    const eventTypeStyles: Record<string, { color: string; yOffset: number }> = {
+      charging: { color: 'rgba(128, 255, 128, 0.5)', yOffset: 20 },
+      home: { color: 'rgba(100, 125, 255, 0.5)', yOffset: 0 },
+      heidi: { color: 'rgba(255, 100, 255, 0.5)', yOffset: 60 },
+      wifi: { color: 'rgba(100, 255, 255, 0.5)', yOffset: -10 },
+      default: { color: 'rgba(255, 0, 255, 0.5)', yOffset: 0 },
+    }
 
-    this.events.forEach((event) => {
+    this.events.forEach(event => {
       const startX = timestampToX(event.start.getTime())
       const endX = timestampToX(event.end.getTime())
       const style = eventTypeStyles[event.eventType] || eventTypeStyles.default
@@ -60,10 +59,10 @@ export class EventLayer implements Layer {
   findClosestItem(
     _canvasX: number,
     _canvasY: number,
-    _timeRangeParam: TimeRange, // Renamed to avoid conflict with outer scope _timeRange
-    _timestampToXParam: (timestamp: number) => number, // Renamed
-    _canvasHeightParam: number, // Renamed
-    _canvasWidthParam: number, // Renamed
+    _timeRange: TimeRange,
+    _timestampToX: (timestamp: number) => number,
+    _canvasHeight: number,
+    _canvasWidth: number,
   ): SelectedItem | null {
     // TODO: Implement if selection of events is needed
     return null

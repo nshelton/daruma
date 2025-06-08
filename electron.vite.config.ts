@@ -18,12 +18,8 @@ export default defineConfig({
     plugins: [react()],
     define: {
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
-      'process.env.GOOGLE_CLIENT_ID': JSON.stringify(
-        process.env.GOOGLE_CLIENT_ID,
-      ),
-      'process.env.GOOGLE_CLIENT_SECRET': JSON.stringify(
-        process.env.GOOGLE_CLIENT_SECRET,
-      ),
+      'process.env.GOOGLE_CLIENT_ID': JSON.stringify(process.env.GOOGLE_CLIENT_ID),
+      'process.env.GOOGLE_CLIENT_SECRET': JSON.stringify(process.env.GOOGLE_CLIENT_SECRET),
     },
   },
 })

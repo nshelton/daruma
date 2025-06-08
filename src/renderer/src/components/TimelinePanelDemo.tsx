@@ -18,9 +18,7 @@ const generateSampleData = (): TimelineData[] => {
     const pointsPerYear = isHighDensity ? 1000 : 10 // 1000 points per year in high density period
 
     for (let i = 0; i < pointsPerYear; i++) {
-      const timestamp =
-        new Date(year, 0, 1).getTime() +
-        Math.random() * 365 * 24 * 60 * 60 * 1000 // Random time within the year
+      const timestamp = new Date(year, 0, 1).getTime() + Math.random() * 365 * 24 * 60 * 60 * 1000 // Random time within the year
 
       // Generate sample metadata
       const metadata = {

@@ -1,0 +1,19 @@
+Next ideas
+
+Fix linter errors, get agent to go through entire codebzse (mainatinence)
+see if it thinks i need any kind of refactor? that's weird
+
+- add something with "average location" for a range (different if zooming in)
+Title text location
+     - some api to get text location / city from locations though 
+     - maybe
+
+
+
+Dashboard ? Top layer with buttons
+- Move this to the side and handle like photoshop LayerTypes
+
+FPS counter?
+
+weather but unsure how to handle that
+

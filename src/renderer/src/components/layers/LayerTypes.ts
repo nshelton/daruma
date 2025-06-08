@@ -43,6 +43,7 @@ export interface Layer<T extends LayerItem = LayerItem> {
     timestampToX: (timestamp: number) => number,
     canvasHeight: number, // Full height of the canvas
     canvasWidth: number, // Full width of the canvas
+    xToTimestamp?: (x: number) => number, // Optional inverted function
   ) => T | null
 
   // Optional: If a layer needs to react to hover events for tooltips, etc.

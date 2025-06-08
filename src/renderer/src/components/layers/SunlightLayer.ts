@@ -55,8 +55,7 @@ export class SunlightLayer implements Layer {
     dayIter.setHours(0, 0, 0, 0)
 
     while (dayIter.getTime() < end) {
-      const { sunrise, sunset, dawn, dusk } =
-        this.getSunlightInfoForDay(dayIter)
+      const { sunrise, sunset, dawn, dusk } = this.getSunlightInfoForDay(dayIter)
       const nextDayIter = new Date(dayIter)
       nextDayIter.setDate(dayIter.getDate() + 1)
       const dayStartTimestamp = dayIter.getTime()
@@ -103,15 +102,7 @@ export class SunlightLayer implements Layer {
         width,
         Y_OFFSET,
       )
-      this.drawRect(
-        ctx,
-        effectiveDusk,
-        dayEndTimestamp,
-        NIGHT_COLOR,
-        timestampToX,
-        width,
-        Y_OFFSET,
-      )
+      this.drawRect(ctx, effectiveDusk, dayEndTimestamp, NIGHT_COLOR, timestampToX, width, Y_OFFSET)
 
       dayIter = nextDayIter
     }
@@ -126,11 +117,7 @@ export class SunlightLayer implements Layer {
 
     for (let xPixel = 0; xPixel < width; xPixel++) {
       const currentTime = timeRange.start + xPixel * timeStep
-      const sunPosition = SunCalc.getPosition(
-        new Date(currentTime),
-        LATITUDE,
-        LONGITUDE,
-      )
+      const sunPosition = SunCalc.getPosition(new Date(currentTime), LATITUDE, LONGITUDE)
       const altitudeRadians = sunPosition.altitude // Altitude in radians
       // Normalize altitude: 0 at horizon, 1 at zenith (PI/2 radians or 90 degrees)
       // Sun altitude can be negative (below horizon).

@@ -88,8 +88,7 @@ function createTimeHierarchy(
         date.setHours(0, 0, 0, 0)
         return date
       },
-      format: (date: Date): string =>
-        date.toLocaleString('en-US', { month: 'short' }),
+      format: (date: Date): string => date.toLocaleString('en-US', { month: 'short' }),
     },
     {
       name: 'day',
@@ -102,11 +101,7 @@ function createTimeHierarchy(
         return next
       },
       getStart: (vsDate): Date => {
-        const date = new Date(
-          vsDate.getFullYear(),
-          vsDate.getMonth(),
-          vsDate.getDate(),
-        )
+        const date = new Date(vsDate.getFullYear(), vsDate.getMonth(), vsDate.getDate())
         date.setHours(0, 0, 0, 0)
         return date
       },
@@ -168,7 +163,7 @@ export class TimeMarkersLayer implements Layer {
     ctx.textBaseline = 'middle'
 
     // SECTION 1: Draw Day Backgrounds for Weekends (if applicable)
-    const dayLevelConfig = timeHierarchy.find((l) => l.name === 'day')
+    const dayLevelConfig = timeHierarchy.find(l => l.name === 'day')
     if (dayLevelConfig) {
       // Only draw if day labels would be shown
       let currentDayBg = dayLevelConfig.getStart(viewStartDate)
@@ -239,10 +234,7 @@ export class TimeMarkersLayer implements Layer {
           break
         }
         currentDate = nextDate
-        if (
-          currentDate.getFullYear() > viewEndDate.getFullYear() + 5 &&
-          level.name === 'year'
-        )
+        if (currentDate.getFullYear() > viewEndDate.getFullYear() + 5 && level.name === 'year')
           break // Extra safety for year
       }
     }

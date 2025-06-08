@@ -70,7 +70,7 @@ export class LocationMovementLayer implements Layer<LocationMovementItem> {
       return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
     }
 
-    movements.forEach((m) => {
+    movements.forEach(m => {
       const binKey = getBinKey(m.time)
       if (!binnedMovements[binKey]) {
         binnedMovements[binKey] = 0
@@ -81,11 +81,11 @@ export class LocationMovementLayer implements Layer<LocationMovementItem> {
     // 3. Draw binned data as a bar chart
     let maxMovement = Math.max(...Object.values(binnedMovements))
     maxMovement = Math.min(maxMovement, 100)
-    
+
     if (maxMovement === 0) return
 
     ctx.save()
-    ctx.fillStyle = 'rgba(125, 255, 128, 0.6)' 
+    ctx.fillStyle = 'rgba(125, 255, 128, 0.6)'
 
     for (const binKey in binnedMovements) {
       const parts = binKey.split('-').map(Number)
@@ -111,9 +111,9 @@ export class LocationMovementLayer implements Layer<LocationMovementItem> {
       const barWidth = Math.max(1, nextX - x)
       const barHeight = (binnedMovements[binKey] / maxMovement) * height
 
-      ctx.fillRect(x, (height - barHeight) / 2, barWidth, barHeight/2)
+      ctx.fillRect(x, (height - barHeight) / 2, barWidth, barHeight / 2)
     }
 
     ctx.restore()
   }
-} 
+}

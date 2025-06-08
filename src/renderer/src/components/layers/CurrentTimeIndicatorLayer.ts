@@ -2,9 +2,10 @@ import { Layer, TimeRange } from './LayerTypes'
 
 const CURRENT_TIME_COLOR = 'orange'
 const LINE_WIDTH = 2
+const DRAGGABLE_CURSOR_GRAB_WIDTH = 10 // Pixels to check for grabbing the cursor
 
 export class CurrentTimeIndicatorLayer implements Layer {
-  id = 'currentTimeIndicator'
+  id = 'currentTime'
   name = 'Current Time'
   isVisible = true
   zIndex = 10 // Draw on top of most other elements
@@ -36,5 +37,15 @@ export class CurrentTimeIndicatorLayer implements Layer {
       ctx.lineWidth = LINE_WIDTH
       ctx.stroke()
     }
+  }
+
+  isDraggable(
+    canvasX: number,
+    _timeRange: TimeRange,
+    timestampToX: (timestamp: number) => number,
+  ): boolean {
+    const now = Date.now()
+    const cursorLineX = timestampToX(now)
+    return Math.abs(canvasX - cursorLineX) < DRAGGABLE_CURSOR_GRAB_WIDTH / 2
   }
 }

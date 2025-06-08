@@ -1,18 +1,12 @@
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import { GoogleMapsOverlay } from '@deck.gl/google-maps'
-
-import { Map } from 'react-map-gl/maplibre'
 import DeckGL from '@deck.gl/react'
 import { ScatterplotLayer } from '@deck.gl/layers'
 import { HeatmapLayer } from '@deck.gl/aggregation-layers'
 
-import type { MapViewState } from '@deck.gl/core'
-import { Color } from 'maplibre-gl'
+import type { MapViewState, Color } from '@deck.gl/core'
 import { ArcPoint } from '../../../types'
 
 // Placeholder for turboColorsUint8 - User should replace with actual import and data
-const placeholderColorRange: number[][] = [
+const placeholderColorRange: Color[] = [
   [255, 237, 160], // Example colors for Deck.gl colorRange
   [254, 217, 118],
   [254, 178, 76],
@@ -43,7 +37,7 @@ export default function MapPanel({
   width = '100%',
   height = '100%',
 }: MapPanelProps): JSX.Element {
-  const points = data.map((d) => [d.lng, d.lat])
+  const points = data.map(d => [d.lng, d.lat])
   console.log(points)
 
   const layers = [
@@ -61,9 +55,9 @@ export default function MapPanel({
       id: 'HeatmapLayer',
       data: points,
       aggregation: 'SUM',
-      colorRange: placeholderColorRange, // Using the new placeholder
+      colorRange: placeholderColorRange,
       getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0],
-      getWeight: (_unusedParam: number[]): number => 1,
+      getWeight: (_: number[]): number => 1,
       radiusPixels: 10,
     }),
   ]
@@ -71,8 +65,8 @@ export default function MapPanel({
   return (
     <div
       style={{
-        width: String(width),
-        height: String(height),
+        width,
+        height,
         position: 'relative',
       }}
     >
