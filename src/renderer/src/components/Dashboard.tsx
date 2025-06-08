@@ -1,0 +1,159 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { TimelinePanel } from './TimelinePanel'
+// import GoogleMapPanel from './GoogleMapPanel' // No longer used
+// import MapPanel from './MapPanel' // Remove this if it exists and is unused - REMOVED
+import { ArcPoint, Event } from '../../../types'
+import { TimeRange as LayerTimeRange } from './layers/LayerTypes'
+import GoogleMapPanel from './GoogleMapPanel'
+
+const DEBOUNCE_DELAY = 500 // Milliseconds for debounce
+
+interface DashboardProps extends Record<string, never> {
+  // No props expected for Dashboard
+}
+
+export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
+  const [arcPoints, setArcPoints] = useState<ArcPoint[]>([])
+  const [events, setEvents] = useState<Event[]>([])
+  const [currentTimelineRange, setCurrentTimelineRange] =
+    useState<LayerTimeRange | null>(null)
+  const [selectedArcPointForMap, setSelectedArcPointForMap] =
+    useState<ArcPoint | null>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // IPC listener for location data
+  const handleLocationData = useCallback(
+    (_event: unknown, receivedData: ArcPoint[]): void => {
+      console.log(
+        'Dashboard received location-data:',
+        receivedData.length,
+        'points',
+      )
+      // Ensure time is a Date object if it's not already
+      const processedData = receivedData.map((p) => ({
+        ...p,
+        time: new Date(p.time), // Ensure time is a Date object
+      }))
+      setArcPoints(processedData)
+    },
+    [],
+  )
+
+  // IPC listener for event data
+  const handleEventData = useCallback(
+    (_event: unknown, receivedData: Event[]): void => {
+      console.log(
+        'Dashboard received event-data:',
+        receivedData.length,
+        'events',
+      )
+      const processedData = receivedData.map((e) => ({
+        ...e,
+        start: new Date(e.start), // Ensure start is a Date object
+        end: new Date(e.end), // Ensure end is a Date object
+      }))
+      setEvents(processedData)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const locationListener = (
+      _event: unknown,
+      receivedData: ArcPoint[],
+    ): void => handleLocationData(_event, receivedData)
+    window.electron.ipcRenderer.on('location-data', locationListener)
+
+    const eventListener = (_event: unknown, receivedData: Event[]): void =>
+      handleEventData(_event, receivedData)
+    window.electron.ipcRenderer.on('event-data', eventListener)
+    // Request events when component mounts
+    window.electron.ipcRenderer.send('get-events')
+
+    return (): void => {
+      window.electron.ipcRenderer.removeListener(
+        'location-data',
+        locationListener,
+      )
+      window.electron.ipcRenderer.removeListener('event-data', eventListener)
+    }
+  }, [handleLocationData, handleEventData])
+
+  // Effect for debounced fetching ArcPoint data via IPC when timeline range changes
+  useEffect(() => {
+    if (!currentTimelineRange) return
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      console.log(
+        'Dashboard: Requesting locations for range:',
+        currentTimelineRange,
+      )
+      window.electron.ipcRenderer.send('get-locations-in-range', {
+        start: currentTimelineRange.start,
+        end: currentTimelineRange.end,
+      })
+    }, DEBOUNCE_DELAY)
+
+    return (): void => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [currentTimelineRange])
+
+  const handleTimelineRangeChange = useCallback(
+    (timeRange: LayerTimeRange): void => {
+      setCurrentTimelineRange(timeRange)
+    },
+    [],
+  )
+
+  const handleArcPointSelect = useCallback((point: ArcPoint): void => {
+    console.log('Dashboard: ArcPoint selected for map:', point)
+    setSelectedArcPointForMap(point)
+  }, [])
+
+  const handleMapTargetProcessed = useCallback((): void => {
+    console.log('Dashboard: Map target processed, clearing selection.')
+    setSelectedArcPointForMap(null)
+  }, [setSelectedArcPointForMap])
+
+  const panelWidth = window.innerWidth
+  const panelHeight = window.innerHeight / 2
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <div
+        style={{
+          flex: '1 1 auto',
+          borderBottom: '1px solid #444',
+          overflow: 'hidden',
+        }}
+      >
+        <GoogleMapPanel
+          data={arcPoints}
+          width={panelWidth}
+          height={panelHeight}
+          targetPoint={selectedArcPointForMap}
+          onTargetProcessed={handleMapTargetProcessed}
+        />
+      </div>
+      <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
+        <TimelinePanel
+          arcPoints={arcPoints}
+          events={events}
+          onVisibleTimeRangeChange={handleTimelineRangeChange}
+          onArcPointSelect={handleArcPointSelect}
+          width={panelWidth}
+          height={panelHeight}
+        />
+      </div>
+    </div>
+  )
+}
+
+export default Dashboard

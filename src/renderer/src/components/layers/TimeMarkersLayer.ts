@@ -142,7 +142,7 @@ export class TimeMarkersLayer implements Layer {
   id = 'timeMarkers'
   name = 'Time Markers'
   isVisible = true
-  zIndex = 5 // Draw on top of data layers but below UI like current time
+  zIndex = -10 // Draw below everything
 
   draw(
     ctx: CanvasRenderingContext2D,
@@ -158,18 +158,56 @@ export class TimeMarkersLayer implements Layer {
     const viewEndDate = new Date(end) // Date object for the end of the view
 
     const spans = calculateTimeSpans(start, end)
-    // createTimeHierarchy itself doesn't need viewStartDate directly, its getStart functions do.
     const timeHierarchy = createTimeHierarchy(viewStartDate.getTime(), spans)
 
     ctx.save()
     // Setup canvas styles
-    ctx.strokeStyle = '#333' // Slightly lighter for better visibility on dark background
-    ctx.fillStyle = '#444' // Lighter text for better visibility
+    ctx.strokeStyle = '#333'
     ctx.font = '24px IBM Plex Mono, monospace'
-    ctx.textAlign = 'center' // Center text on markers
+    ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
 
-    // Draw hierarchical time markers (lines and labels)
+    // SECTION 1: Draw Day Backgrounds for Weekends (if applicable)
+    const dayLevelConfig = timeHierarchy.find((l) => l.name === 'day')
+    if (dayLevelConfig) {
+      // Only draw if day labels would be shown
+      let currentDayBg = dayLevelConfig.getStart(viewStartDate)
+      while (currentDayBg <= viewEndDate) {
+        const nextDayBg = dayLevelConfig.getNext(currentDayBg) // This gives the start of the next day
+
+        const dayOfWeek = currentDayBg.getDay()
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 // Sunday is 0, Saturday is 6
+
+        if (isWeekend) {
+          const x1 = timestampToX(currentDayBg.getTime())
+          const x2 = timestampToX(nextDayBg.getTime())
+          const rectWidth = x2 - x1
+
+          if (rectWidth > 0) {
+            const drawX = Math.max(x1, 0)
+            const effectiveRectWidth = Math.min(x2, width) - drawX
+            if (effectiveRectWidth > 0) {
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.2)' // Slightly lighter gray for weekend background
+              ctx.fillRect(drawX, 0, effectiveRectWidth, height)
+            }
+          }
+        }
+        if (nextDayBg.getTime() === currentDayBg.getTime()) {
+          // console.warn("Stall in day background progression");
+          break
+        }
+        currentDayBg = nextDayBg
+        // Safety break if loop goes too far
+        if (
+          currentDayBg.getFullYear() > viewEndDate.getFullYear() + 2 &&
+          dayLevelConfig.name === 'day'
+        )
+          break
+      }
+    }
+
+    // SECTION 2: Draw hierarchical time markers (lines and labels)
+    ctx.fillStyle = '#888' // Brighter text for labels for better contrast
     for (const level of timeHierarchy) {
       if (level.span > level.threshold * 5 && level.name !== 'year') continue
       const showLabels = level.span <= level.threshold
@@ -184,6 +222,7 @@ export class TimeMarkersLayer implements Layer {
           ctx.moveTo(x, level.yPosition - (showLabels ? 10 : 5)) // Line height adjustment
           ctx.lineTo(x, height) // Draw line to bottom of canvas or a fixed height
           ctx.globalAlpha = showLabels ? 0.5 : 0.25 // Dimmer lines for less prominent levels
+          ctx.strokeStyle = '#333' // Ensure strokeStyle is set before stroke
           ctx.stroke()
           ctx.globalAlpha = 1.0 // Reset alpha
 
@@ -208,19 +247,18 @@ export class TimeMarkersLayer implements Layer {
       }
     }
 
-    //Draw start time on left side of canvas
-    ctx.fillStyle = '#666'
-    ctx.font = '24px IBM Plex Mono'
+    // SECTION 3: Draw start/end time labels
+    ctx.fillStyle = '#AAA' // Brighter text for start/end labels
+    ctx.font = '24px IBM Plex Mono' // Ensure font is reset if changed above
     ctx.textAlign = 'left'
 
     for (const level of timeHierarchy) {
-      const startDate = level.getStart(viewStartDate)
-      const label = level.format(startDate)
+      const startDateMarker = level.getStart(viewStartDate) // Renamed to avoid conflict
+      const label = level.format(startDateMarker)
       ctx.fillText(label, 10, level.yPosition + FONT_SIZE)
     }
 
-
-    ctx.fillStyle = '#666'
+    // ctx.fillStyle = '#AAA'; // Already set
     const startLabel = new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',

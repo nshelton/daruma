@@ -151,4 +151,47 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
     }
     return null
   }
+
+  public findItemClosestToTime(targetTime: number): ArcPointItem | null {
+    if (!this.arcData || this.arcData.length === 0) {
+      return null
+    }
+
+    let closestPoint: ArcPoint | null = null
+    let minTimeDifference = Infinity
+
+    for (const point of this.arcData) {
+      const pointTime = point.time.getTime()
+      const timeDifference = Math.abs(pointTime - targetTime)
+
+      if (timeDifference < minTimeDifference) {
+        minTimeDifference = timeDifference
+        closestPoint = point
+      }
+    }
+
+    if (closestPoint) {
+      const pointTimestamp = closestPoint.time.getTime()
+      const item: ArcPointItem = {
+        id: pointTimestamp,
+        layerId: this.id,
+        timestamp: pointTimestamp,
+        lat: closestPoint.lat,
+        lng: closestPoint.lng,
+        metadata: {
+          originalTime: closestPoint.time.toISOString(),
+          latitude: closestPoint.lat,
+          longitude: closestPoint.lng,
+          // Add any other relevant metadata from closestPoint
+        },
+      }
+      // Include .value if it exists on closestPoint, similar to findClosestItem
+      if (Object.prototype.hasOwnProperty.call(closestPoint, 'value')) {
+        item.value = closestPoint.value
+      }
+      return item
+    }
+
+    return null
+  }
 }

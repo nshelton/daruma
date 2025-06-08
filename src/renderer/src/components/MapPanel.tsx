@@ -10,7 +10,22 @@ import { HeatmapLayer } from '@deck.gl/aggregation-layers'
 import type { MapViewState } from '@deck.gl/core'
 import { Color } from 'maplibre-gl'
 import { ArcPoint } from '../../../types'
-import { turboColorsUint8 } from '@renderer/ColorSchemes'
+
+// Placeholder for turboColorsUint8 - User should replace with actual import and data
+const placeholderColorRange: number[][] = [
+  [255, 237, 160], // Example colors for Deck.gl colorRange
+  [254, 217, 118],
+  [254, 178, 76],
+  [253, 141, 60],
+  [240, 59, 32],
+  [189, 0, 38],
+]
+
+interface MapPanelProps {
+  data: ArcPoint[]
+  width?: string | number // Will be string like '500px' or '100%'
+  height?: string | number // Will be string like '500px' or '100%'
+}
 
 const INITIAL_VIEW_STATE: MapViewState = {
   longitude: -118.29,
@@ -21,43 +36,60 @@ const INITIAL_VIEW_STATE: MapViewState = {
   bearing: 0,
 }
 
-const MAP_STYLE =
-  'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json'
-// const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-// const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
-export default function MapView({ data }: { data: ArcPoint[] }): JSX.Element {
+// const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json'; // Unused
+
+export default function MapPanel({
+  data,
+  width = '100%',
+  height = '100%',
+}: MapPanelProps): JSX.Element {
   const points = data.map((d) => [d.lng, d.lat])
   console.log(points)
 
   const layers = [
-    new ScatterplotLayer<ArcPoint>({
+    new ScatterplotLayer<number[]>({
       id: 'scatter-plot',
       data: points,
       radiusScale: 5,
       opacity: 0.5,
       radiusMinPixels: 0.25,
-      getPosition: (d: ArcPoint): [number, number, number] => [d[0], d[1], 0],
+      getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0],
       getFillColor: (): [number, number, number] => [0, 200, 200],
       getRadius: 1,
     }),
-    new HeatmapLayer({
+    new HeatmapLayer<number[]>({
       id: 'HeatmapLayer',
       data: points,
       aggregation: 'SUM',
-      colorRange: turboColorsUint8,
-      getPosition: (d: ArcPoint): [number, number, number] => [d[0], d[1], 0],
-      getWeight: (_: ArcPoint): number => 1,
+      colorRange: placeholderColorRange, // Using the new placeholder
+      getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0],
+      getWeight: (_unusedParam: number[]): number => 1,
       radiusPixels: 10,
     }),
   ]
 
   return (
-    <DeckGL
-      layers={layers}
-      initialViewState={INITIAL_VIEW_STATE}
-      controller={true}
+    <div
+      style={{
+        width: String(width),
+        height: String(height),
+        position: 'relative',
+      }}
     >
-      {/* <Map reuseMaps mapStyle={MAP_STYLE} /> */}
-    </DeckGL>
+      <DeckGL
+        layers={layers}
+        initialViewState={INITIAL_VIEW_STATE}
+        controller={true}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        {/* <Map reuseMaps mapStyle={MAP_STYLE} /> */}
+      </DeckGL>
+    </div>
   )
 }

@@ -11,7 +11,7 @@ export class MoonPhaseLayer implements Layer {
   id = 'moonPhase'
   name = 'Moon Phase'
   isVisible = true
-  zIndex = -1.5 // Draw it very close to sunlight, potentially slightly above or below based on exact zIndex vs sunlight's -1
+  zIndex = 2 // Draw it very close to sunlight, potentially slightly above or below based on exact zIndex vs sunlight's -1
 
   draw(
     ctx: CanvasRenderingContext2D,

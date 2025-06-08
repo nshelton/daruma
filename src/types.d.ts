@@ -2,6 +2,7 @@ export interface ArcPoint {
   lat: number
   lng: number
   time: Date
+  value?: any // Added optional value property
   // Add other properties as needed
 }
 

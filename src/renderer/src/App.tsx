@@ -1,10 +1,10 @@
-import TimelinePanelDemo from './components/TimelinePanelDemo'
 import './main.css'
+import Dashboard from './components/Dashboard'
 
 function App(): JSX.Element {
   return (
     <div id="main-canvas">
-      <TimelinePanelDemo />
+      <Dashboard />
     </div>
   )
 }

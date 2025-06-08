@@ -19,7 +19,7 @@ export class SunlightLayer implements Layer {
   id = 'sunlight'
   name = 'Sunlight'
   isVisible = true
-  zIndex = -1 // Draw behind other elements like time markers
+  zIndex = 2 // Draw behind other elements like time markers
 
   private getSunlightInfoForDay(date: Date): {
     sunrise: number

@@ -1,7 +1,11 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { getAllEvents, getAllLocationsInRange, initializeAllLocationsCache } from './db'
+import {
+  getAllEvents,
+  getAllLocationsInRange,
+  initializeAllLocationsCache,
+} from './db'
 import icon from '../../resources/icon.png?asset'
 import { Event } from '../types'
 
@@ -51,11 +55,13 @@ app.whenReady().then(() => {
   // Initialize the location cache
   initializeAllLocationsCache((err, count) => {
     if (err) {
-      console.error('Failed to initialize location cache:', err);
+      console.error('Failed to initialize location cache:', err)
     } else {
-      console.log(`Location cache initialized successfully with ${count} items.`);
+      console.log(
+        `Location cache initialized successfully with ${count} items.`,
+      )
     }
-  });
+  })
 
   // Create the main window
   createWindow()
@@ -63,33 +69,45 @@ app.whenReady().then(() => {
   // Set up other IPC handlers
   ipcMain.on('get-events', (event) => {
     console.log('get-events')
-    getAllEvents((err, data) => {
+    getAllEvents((err: Error | null, data: Event[]) => {
       if (err) {
-        console.error('Error fetching events:', err);
-        event.reply('event-data', []);
-        return;
+        console.error('Error fetching events:', err)
+        event.reply('event-data', [])
+        return
       }
       event.reply('event-data', data)
     })
   })
 
   // Updated IPC handler for locations
-  ipcMain.on('get-locations-in-range', (event, timeRange: { start: number; end: number }) => {
-    if (!timeRange || typeof timeRange.start !== 'number' || typeof timeRange.end !== 'number') {
-      console.error('Invalid timeRange received for get-locations-in-range:', timeRange);
-      event.reply('location-data', []); // Send empty array or error
-      return;
-    }
-    console.log(`get-locations-in-range: ${new Date(timeRange.start).toISOString()} to ${new Date(timeRange.end).toISOString()}`);
-    getAllLocationsInRange(timeRange.start, timeRange.end, (err, data) => {
-      if (err) {
-        console.error('Error fetching locations:', err);
-        event.reply('location-data', []); // Send empty on error
-        return;
+  ipcMain.on(
+    'get-locations-in-range',
+    (event, timeRange: { start: number; end: number }) => {
+      if (
+        !timeRange ||
+        typeof timeRange.start !== 'number' ||
+        typeof timeRange.end !== 'number'
+      ) {
+        console.error(
+          'Invalid timeRange received for get-locations-in-range:',
+          timeRange,
+        )
+        event.reply('location-data', []) // Send empty array or error
+        return
       }
-      event.reply('location-data', data)
-    })
-  })
+      console.log(
+        `get-locations-in-range: ${new Date(timeRange.start).toISOString()} to ${new Date(timeRange.end).toISOString()}`,
+      )
+      getAllLocationsInRange(timeRange.start, timeRange.end, (err, data) => {
+        if (err) {
+          console.error('Error fetching locations:', err)
+          event.reply('location-data', []) // Send empty on error
+          return
+        }
+        event.reply('location-data', data)
+      })
+    },
+  )
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
