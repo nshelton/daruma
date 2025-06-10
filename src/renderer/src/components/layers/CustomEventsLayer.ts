@@ -167,14 +167,16 @@ export class CustomEventsLayer implements Layer<CustomEventItem> {
         // Ensure the label doesn't go beyond the canvas boundaries
         labelX = Math.max(2, Math.min(labelX, _width - textWidth - 2))
         
-        // Calculate text bounding box
+        // Calculate text bounding box with expanded clickable area
         const textCenterY = eventTopY + event.height / 2
-        const textTop = textCenterY - textHeight / 2
-        const textBottom = textCenterY + textHeight / 2
-        const textLeft = labelX
-        const textRight = labelX + textWidth
+        const clickPadding = 8 // Extra padding around text for easier clicking
         
-        // Check if click is within the text bounding box
+        const textTop = textCenterY - textHeight / 2 - clickPadding
+        const textBottom = textCenterY + textHeight / 2 + clickPadding
+        const textLeft = labelX - clickPadding
+        const textRight = labelX + textWidth + clickPadding
+        
+        // Check if click is within the expanded text bounding box
         if (
           canvasX >= textLeft &&
           canvasX <= textRight &&
