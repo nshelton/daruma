@@ -20,4 +20,5 @@ export interface CustomEvent {
   startTime: number
   endTime: number
   y?: number
+  height?: number
 }

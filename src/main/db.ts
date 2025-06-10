@@ -62,9 +62,16 @@ export function initializeCustomEventsDb(): void {
         color TEXT NOT NULL,
         startTime INTEGER NOT NULL,
         endTime INTEGER NOT NULL,
-        y REAL
+        y REAL,
+        height REAL DEFAULT 20
       )
-    `)
+    `, (err) => {
+      if (err) {
+        console.error('Error creating custom_events table:', err)
+      } else {
+        console.log('Custom events database initialized')
+      }
+    })
   })
 }
 
@@ -96,10 +103,11 @@ export function createCustomEvent(
   event: Omit<CustomEvent, 'id'>,
   callback: (err: Error | null, newId?: number) => void,
 ): void {
-  const query = `INSERT INTO custom_events (title, color, startTime, endTime, y) VALUES (?, ?, ?, ?, ?)`
+  const query = `INSERT INTO custom_events (title, color, startTime, endTime, y, height) VALUES (?, ?, ?, ?, ?, ?)`
+  const height = event.height ?? 20 // Default height if not provided
   db_custom_events.run(
     query,
-    [event.title, event.color, event.startTime, event.endTime, event.y],
+    [event.title, event.color, event.startTime, event.endTime, event.y, height],
     function (err) {
       if (err) {
         callback(err)
@@ -119,15 +127,21 @@ export function getAllCustomEvents(
       callback(err, [])
       return
     }
-    callback(null, rows)
+    // Ensure height has a default value for backwards compatibility
+    const eventsWithDefaults = rows.map(row => ({
+      ...row,
+      height: row.height ?? 20 // Default height if not present
+    }))
+    callback(null, eventsWithDefaults)
   })
 }
 
 export function updateCustomEvent(event: CustomEvent, callback: (err: Error | null) => void): void {
-  const query = `UPDATE custom_events SET title = ?, color = ?, startTime = ?, endTime = ?, y = ? WHERE id = ?`
+  const query = `UPDATE custom_events SET title = ?, color = ?, startTime = ?, endTime = ?, y = ?, height = ? WHERE id = ?`
+  const height = event.height ?? 20 // Default height if not provided
   db_custom_events.run(
     query,
-    [event.title, event.color, event.startTime, event.endTime, event.y, event.id],
+    [event.title, event.color, event.startTime, event.endTime, event.y, height, event.id],
     err => {
       callback(err)
     },

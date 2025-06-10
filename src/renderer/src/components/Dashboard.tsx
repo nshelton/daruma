@@ -5,6 +5,7 @@ import { TimelinePanel } from './TimelinePanel'
 import { ArcPoint, Event, CustomEvent } from '../../../types'
 import { TimeRange as LayerTimeRange } from './layers/LayerTypes'
 import GoogleMapPanel from './GoogleMapPanel'
+import FpsCounter from './FpsCounter'
 
 const DEBOUNCE_DELAY = 500 // Milliseconds for debounce
 
@@ -132,7 +133,8 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
   const panelHeight = window.innerHeight / 2
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}>
+      <FpsCounter />
       <div
         style={{
           flex: '1 1 auto',

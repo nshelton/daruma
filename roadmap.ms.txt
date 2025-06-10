@@ -17,3 +17,9 @@ FPS counter?
 
 weather but unsure how to handle that
 
+
+
+events could have different heights
+- make the labels show up always in view
+- draggable width heights
+- have highlight states on dragging

@@ -15,6 +15,7 @@ import { CustomEventsLayer, CustomEventItem } from './layers/CustomEventsLayer'
 const MS_PER_YEAR = 31536000000
 const MIN_ZOOM = 0.01
 const MAX_ZOOM = 8760
+const MIN_DATE_1991 = new Date('1991-01-01').getTime() // Minimum date: January 1, 1991
 
 interface TimelinePanelProps {
   width?: number
@@ -37,16 +38,18 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
 }): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [zoom, setZoom] = useState(1)
-  const [centerTimestamp, setCenterTimestamp] = useState(Date.now())
+  const [centerTimestamp, setCenterTimestamp] = useState(Math.max(Date.now(), MIN_DATE_1991))
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouseX, setLastMouseX] = useState(0)
 
   const [draggedItem, setDraggedItem] = useState<
-    (CustomEventItem & { part: 'left' | 'right' | 'body' }) | null
+    (CustomEventItem & { part: 'left' | 'right' | 'body' | 'top' | 'bottom' }) | null
   >(null)
 
+  const [dragOffset, setDragOffset] = useState<{ timeOffset: number; yOffset: number } | null>(null)
+
   const [hoveredItem, setHoveredItem] = useState<
-    (CustomEventItem & { part: 'left' | 'right' | 'body' }) | null
+    (CustomEventItem & { part: 'left' | 'right' | 'body' | 'top' | 'bottom' }) | null
   >(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -73,9 +76,19 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
 
   const getVisibleTimeRange = useCallback((): LayerTimeRange => {
     const timeWindow = MS_PER_YEAR / zoom
+    let start = centerTimestamp - timeWindow / 2
+    let end = centerTimestamp + timeWindow / 2
+    
+    // Ensure the timeline never shows anything before 1991
+    if (start < MIN_DATE_1991) {
+      const shift = MIN_DATE_1991 - start
+      start = MIN_DATE_1991
+      end = end + shift // Shift the end forward to maintain the same time window size
+    }
+    
     return {
-      start: centerTimestamp - timeWindow / 2,
-      end: centerTimestamp + timeWindow / 2,
+      start,
+      end,
     }
   }, [centerTimestamp, zoom])
 
@@ -94,14 +107,12 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     setLayers(prevLayers =>
       prevLayers.map(layer => {
         if (layer.id === 'arcPoints' && layer instanceof ArcPointLayer) {
-          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
-          newLayer.setData(processedData)
-          return newLayer
+          layer.setData(processedData)
+          return layer
         }
         if (layer.id === 'locationMovement' && layer instanceof LocationMovementLayer) {
-          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
-          newLayer.setData(processedData)
-          return newLayer
+          layer.setData(processedData)
+          return layer
         }
         return layer
       }),
@@ -109,17 +120,26 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   }, [arcPoints])
 
   useEffect(() => {
+    // Don't update layer data from database if currently dragging
+    if (draggedItem) return
+    
     setLayers(prevLayers =>
       prevLayers.map(layer => {
         if (layer.id === 'customEvents' && layer instanceof CustomEventsLayer) {
-          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
-          newLayer.setData(customEvents)
-          return newLayer
+          layer.setData(customEvents)
+          // Update selected event ID
+          layer.setSelectedEventId(selectedCustomEvent?.id ? Number(selectedCustomEvent.id) : null)
+          // Update hovered event and part
+          layer.setHoveredEvent(
+            hoveredItem?.id ? Number(hoveredItem.id) : null,
+            hoveredItem?.part || null
+          )
+          return layer
         }
         return layer
       }),
     )
-  }, [customEvents])
+  }, [customEvents, draggedItem, selectedCustomEvent, hoveredItem])
 
   const handleAddCustomEvent = useCallback(() => {
     const newEvent: Omit<CustomEvent, 'id'> = {
@@ -128,6 +148,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       startTime: centerTimestamp - 1000 * 60 * 30, // 30 minutes before center
       endTime: centerTimestamp + 1000 * 60 * 30, // 30 minutes after center
       y: 100, // Default y position from bottom
+      height: 20, // Default height
     }
     window.electron.ipcRenderer.send('create-custom-event', newEvent)
   }, [centerTimestamp])
@@ -141,9 +162,8 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     setLayers(prevLayers =>
       prevLayers.map(layer => {
         if (layer.id === 'events' && layer instanceof EventLayer) {
-          const newLayer = Object.assign(Object.create(Object.getPrototypeOf(layer)), layer)
-          newLayer.setData(processedEvents)
-          return newLayer
+          layer.setData(processedEvents)
+          return layer
         }
         return layer
       }),
@@ -373,8 +393,39 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       if (!canvas) return
       const rect = canvas.getBoundingClientRect()
       const canvasX = clientX - rect.left
+      const canvasY = event.clientY - rect.top
 
       if (hoveredItem && selectedCustomEvent) {
+        // Calculate the offset for all drag operations
+        const mouseTime = xToTimestamp(canvasX)
+        // Calculate Y offset: canvas Y is from top, item.y is from bottom
+        // Event top position in canvas coordinates: height - item.y - eventHeight
+        // Event center position in canvas coordinates: height - item.y - eventHeight/2
+        const eventHeight = hoveredItem.height || 20 // Use dynamic height or default
+        const eventTopY = height - hoveredItem.y - eventHeight
+        const yOffset = canvasY - eventTopY
+        
+        if (hoveredItem.part === 'body') {
+          const timeOffset = mouseTime - hoveredItem.startTime!
+          setDragOffset({ timeOffset, yOffset })
+        } else if (hoveredItem.part === 'left') {
+          const timeOffset = mouseTime - hoveredItem.startTime!
+          setDragOffset({ timeOffset, yOffset })
+        } else if (hoveredItem.part === 'right') {
+          const timeOffset = mouseTime - hoveredItem.endTime!
+          setDragOffset({ timeOffset, yOffset })
+        } else if (hoveredItem.part === 'top') {
+          // For top edge, we don't need time offset, just Y offset from the top edge
+          const topEdgeY = height - hoveredItem.y - hoveredItem.height
+          const yOffset = canvasY - topEdgeY
+          setDragOffset({ timeOffset: 0, yOffset })
+        } else if (hoveredItem.part === 'bottom') {
+          // For bottom edge, we don't need time offset, just Y offset from the bottom edge
+          const bottomEdgeY = height - hoveredItem.y
+          const yOffset = canvasY - bottomEdgeY
+          setDragOffset({ timeOffset: 0, yOffset })
+        }
+        
         setDraggedItem(hoveredItem)
         return
       }
@@ -396,7 +447,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       setIsDragging(true)
       setLastMouseX(clientX)
     },
-    [hoveredItem, selectedCustomEvent, getVisibleTimeRange, layers, timestampToX, xToTimestamp],
+    [hoveredItem, selectedCustomEvent, getVisibleTimeRange, layers, timestampToX, xToTimestamp, height],
   )
 
   const handleMouseMove = useCallback(
@@ -409,7 +460,6 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       const visibleTimeRange = getVisibleTimeRange()
 
       if (draggedItem && selectedCustomEvent) {
-        const timeAtMouse = xToTimestamp(canvasX)
         const customEventsLayer = layers.find(
           l => l.id === 'customEvents' && l instanceof CustomEventsLayer,
         ) as CustomEventsLayer
@@ -419,19 +469,78 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
           const eventToUpdate = events.find(e => e.id === draggedItem.id)
           if (eventToUpdate) {
             switch (draggedItem.part) {
-              case 'left':
-                eventToUpdate.startTime = timeAtMouse
+              case 'left': {
+                const leftTime = dragOffset ? xToTimestamp(canvasX) - dragOffset.timeOffset : xToTimestamp(canvasX)
+                eventToUpdate.startTime = leftTime
+                // Apply Y offset for left handle dragging too
+                if (dragOffset) {
+                  // Convert from canvas Y to item.y coordinate system
+                  const newEventTopY = canvasY - dragOffset.yOffset
+                  const eventHeight = draggedItem.height || 20 // Use dynamic height or default
+                  const newY = height - newEventTopY - eventHeight
+                  eventToUpdate.y = Math.max(0, newY)
+                }
                 break
-              case 'right':
-                eventToUpdate.endTime = timeAtMouse
+              }
+              case 'right': {
+                const rightTime = dragOffset ? xToTimestamp(canvasX) - dragOffset.timeOffset : xToTimestamp(canvasX)
+                eventToUpdate.endTime = rightTime
+                // Apply Y offset for right handle dragging too
+                if (dragOffset) {
+                  // Convert from canvas Y to item.y coordinate system
+                  const newEventTopY = canvasY - dragOffset.yOffset
+                  const eventHeight = draggedItem.height || 20 // Use dynamic height or default
+                  const newY = height - newEventTopY - eventHeight
+                  eventToUpdate.y = Math.max(0, newY)
+                }
                 break
+              }
               case 'body': {
-                const itemStartTime = draggedItem.startTime!
-                const itemEndTime = draggedItem.endTime!
-                const duration = itemEndTime - itemStartTime
-                eventToUpdate.startTime = timeAtMouse - duration / 2
-                eventToUpdate.endTime = timeAtMouse + duration / 2
-                eventToUpdate.y = height - canvasY - 10 // Quick implementation for y-drag
+                const timeAtMouse = xToTimestamp(canvasX)
+                const duration = draggedItem.endTime! - draggedItem.startTime!
+                
+                // Use the stored offset to maintain relative position
+                const newStartTime = dragOffset ? timeAtMouse - dragOffset.timeOffset : timeAtMouse - duration / 2
+                eventToUpdate.startTime = newStartTime
+                eventToUpdate.endTime = newStartTime + duration
+                
+                // Use Y offset for vertical dragging
+                if (dragOffset) {
+                  // Convert from canvas Y to item.y coordinate system
+                  const newEventTopY = canvasY - dragOffset.yOffset
+                  const eventHeight = draggedItem.height || 20 // Use dynamic height or default
+                  const newY = height - newEventTopY - eventHeight
+                  eventToUpdate.y = Math.max(0, newY)
+                } else {
+                  const newY = height - canvasY - 10
+                  eventToUpdate.y = Math.max(0, newY)
+                }
+                break
+              }
+              case 'top': {
+                // Resize from the top - change height and y position
+                if (dragOffset) {
+                  const newTopY = canvasY - dragOffset.yOffset
+                  const currentBottomY = height - draggedItem.y
+                  const newHeight = Math.max(10, currentBottomY - newTopY) // Minimum height of 10px
+                  const newY = height - newTopY - newHeight
+                  
+                  eventToUpdate.height = newHeight
+                  eventToUpdate.y = Math.max(0, newY)
+                }
+                break
+              }
+              case 'bottom': {
+                // Resize from the bottom - change height and y position
+                if (dragOffset) {
+                  const newBottomY = canvasY - dragOffset.yOffset
+                  const currentTopY = height - draggedItem.y - draggedItem.height
+                  const newHeight = Math.max(10, newBottomY - currentTopY) // Minimum height of 10px
+                  const newY = height - newBottomY // Update y position to new bottom position
+                  
+                  eventToUpdate.height = newHeight
+                  eventToUpdate.y = Math.max(0, newY)
+                }
                 break
               }
             }
@@ -446,7 +555,21 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
         const deltaX = event.clientX - lastMouseX
         if (width === 0 || zoom === 0) return
         const timeDelta = (deltaX / width) * (MS_PER_YEAR / zoom)
-        setCenterTimestamp(prev => prev - timeDelta)
+        
+        setCenterTimestamp(prev => {
+          const newCenter = prev - timeDelta
+          const timeWindow = MS_PER_YEAR / zoom
+          const newStart = newCenter - timeWindow / 2
+          
+          // Ensure the new center position doesn't show dates before 1991
+          if (newStart < MIN_DATE_1991) {
+            // Calculate the minimum allowed center position
+            const minAllowedCenter = MIN_DATE_1991 + timeWindow / 2
+            return minAllowedCenter
+          }
+          
+          return newCenter
+        })
         setLastMouseX(event.clientX)
       } else {
         // Hover logic
@@ -488,6 +611,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       selectedCustomEvent,
       height,
       render,
+      dragOffset,
     ],
   )
 
@@ -505,6 +629,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
         }
       }
       setDraggedItem(null)
+      setDragOffset(null)
     }
     if (isDraggingCursor) {
       setIsDraggingCursor(false)
@@ -532,6 +657,9 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   const cursorStyle = useMemo(() => {
     if (hoveredItem && (hoveredItem.part === 'left' || hoveredItem.part === 'right')) {
       return 'ew-resize'
+    }
+    if (hoveredItem && (hoveredItem.part === 'top' || hoveredItem.part === 'bottom')) {
+      return 'ns-resize'
     }
     if (hoveredItem && hoveredItem.part === 'body') {
       return 'move'
@@ -621,6 +749,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
               startTime: updatedItem.startTime as number,
               endTime: updatedItem.endTime as number,
               y: updatedItem.y as number,
+              height: updatedItem.height as number,
             }
             updateCustomEvent(eventToUpdate)
             setSelectedItem(updatedItem)
