@@ -14,6 +14,10 @@ export interface LocationNameItem extends LayerItem {
 // Simple location cache to avoid redundant API calls
 const locationCache = new Map<string, { name: string; level: string }>()
 
+// Request queue to manage API rate limiting
+let lastRequestTime = 0
+const MIN_REQUEST_INTERVAL = 1100 // 1.1 seconds between requests for Nominatim
+
 // Predefined colors for locations
 const locationColors = [
   '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57',
@@ -33,6 +37,19 @@ export class LocationNameLayer implements Layer<LocationNameItem> {
 
   constructor() {
     // Empty constructor, data will be set via setData
+    // Test with a known coordinate on first load
+    this.testGeocodingAPI()
+  }
+
+  private async testGeocodingAPI(): Promise<void> {
+    try {
+      // Test with coordinates for New York City
+      console.log('[LocationNameLayer] Testing geocoding API with NYC coordinates...')
+      const result = await this.reverseGeocode(40.7128, -74.0060, 'city')
+      console.log(`[LocationNameLayer] Test result: ${result}`)
+    } catch (error) {
+      console.error('[LocationNameLayer] Geocoding API test failed:', error)
+    }
   }
 
   public setData(data: ArcPoint[]): void {
@@ -58,49 +75,89 @@ export class LocationNameLayer implements Layer<LocationNameItem> {
     const cacheKey = this.getCacheKey(lat, lng, level)
     
     if (locationCache.has(cacheKey)) {
-      return locationCache.get(cacheKey)!.name
+      const cached = locationCache.get(cacheKey)!
+      console.log(`[LocationNameLayer] Using cached result for ${lat},${lng}: ${cached.name}`)
+      return cached.name
     }
 
     try {
+      console.log(`[LocationNameLayer] Geocoding ${lat},${lng} at level ${level}`)
+      
+      // Implement rate limiting to respect Nominatim's limits
+      const now = Date.now()
+      const timeSinceLastRequest = now - lastRequestTime
+      if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+        const delay = MIN_REQUEST_INTERVAL - timeSinceLastRequest
+        console.log(`[LocationNameLayer] Rate limiting: waiting ${delay}ms`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+      lastRequestTime = Date.now()
+      
       // Using OpenStreetMap Nominatim API (free, no API key required)
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=${this.getZoomLevel(level)}&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'Daruma Timeline App (personal use)'
-          }
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=${this.getZoomLevel(level)}&addressdetails=1`
+      console.log(`[LocationNameLayer] API URL: ${url}`)
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Daruma Timeline App (personal use)'
         }
-      )
+      })
+      
+      console.log(`[LocationNameLayer] Response status: ${response.status}`)
       
       if (!response.ok) {
+        console.error(`[LocationNameLayer] HTTP error! status: ${response.status}`)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
+      console.log(`[LocationNameLayer] API response:`, data)
+      
       let locationName = 'Unknown'
       
-      if (data.address) {
+      if (data && data.address) {
         switch (level) {
           case 'city':
             locationName = data.address.city || data.address.town || data.address.village || 
-                          data.address.suburb || data.address.hamlet || 'Unknown City'
+                          data.address.suburb || data.address.hamlet || data.address.municipality ||
+                          data.address.county || 'Unknown City'
             break
           case 'state':
-            locationName = data.address.state || data.address.province || data.address.region || 'Unknown State'
+            locationName = data.address.state || data.address.province || data.address.region || 
+                          data.address['ISO3166-2-lvl4'] || 'Unknown State'
             break
           case 'country':
-            locationName = data.address.country || 'Unknown Country'
+            locationName = data.address.country || data.address.country_code?.toUpperCase() || 'Unknown Country'
             break
         }
+      } else if (data && data.display_name) {
+        // Fallback: use part of display_name if address is not available
+        const parts = data.display_name.split(',')
+        switch (level) {
+          case 'city':
+            locationName = parts[0]?.trim() || 'Unknown City'
+            break
+          case 'state':
+            locationName = parts[parts.length - 2]?.trim() || 'Unknown State'
+            break
+          case 'country':
+            locationName = parts[parts.length - 1]?.trim() || 'Unknown Country'
+            break
+        }
+      } else {
+        console.warn(`[LocationNameLayer] No usable data in response:`, data)
       }
       
+      console.log(`[LocationNameLayer] Resolved location name: ${locationName}`)
       locationCache.set(cacheKey, { name: locationName, level })
       return locationName
       
     } catch (error) {
-      console.warn('Geocoding failed:', error)
-      locationCache.set(cacheKey, { name: 'Unknown', level })
-      return 'Unknown'
+      console.error(`[LocationNameLayer] Geocoding failed for ${lat},${lng}:`, error)
+      const fallbackName = level === 'city' ? 'Unknown City' : 
+                          level === 'state' ? 'Unknown State' : 'Unknown Country'
+      locationCache.set(cacheKey, { name: fallbackName, level })
+      return fallbackName
     }
   }
 
@@ -139,8 +196,8 @@ export class LocationNameLayer implements Layer<LocationNameItem> {
     // Cluster nearby points to avoid too many labels
     const clusteredPoints = this.clusterPoints(relevantPoints, detailLevel)
     
-    // Limit to max 50 locations as requested
-    const limitedPoints = clusteredPoints.slice(0, 50)
+    // Limit to max 10 locations initially for testing (was 50)
+    const limitedPoints = clusteredPoints.slice(0, 10)
     
     // Process each unique location
     const locationItems: LocationNameItem[] = []
@@ -177,11 +234,11 @@ export class LocationNameLayer implements Layer<LocationNameItem> {
   private clusterPoints(points: ArcPoint[], detailLevel: 'city' | 'state' | 'country'): ArcPoint[] {
     if (points.length === 0) return []
     
-    // Define clustering distance based on detail level (in degrees)
+    // Define clustering distance based on detail level (in degrees) - more aggressive clustering
     const clusterDistance = {
-      city: 0.01,     // ~1km
-      state: 0.1,     // ~10km  
-      country: 1.0    // ~100km
+      city: 0.05,     // ~5km (increased from 1km)
+      state: 0.5,     // ~50km (increased from 10km)  
+      country: 2.0    // ~200km (increased from 100km)
     }[detailLevel]
     
     const clusters: ArcPoint[][] = []
