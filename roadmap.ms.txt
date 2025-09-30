@@ -18,8 +18,9 @@ FPS counter?
 weather but unsure how to handle that
 
 
+map dots too small
 
-events could have different heights
-- make the labels show up always in view
-- draggable width heights
-- have highlight states on dragging
+dbscan on locations?
+
+*** consistent binning ****
+frequency vs time consistency

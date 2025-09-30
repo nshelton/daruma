@@ -5,9 +5,9 @@ import { Layer, TimeRange } from './LayerTypes'
 const LATITUDE = 34.090097
 const LONGITUDE = -118.299888
 
-const DAY_COLOR = 'rgba(255, 208, 100, 1)' // Light yellow for daytime (increased alpha slightly)
-const NIGHT_COLOR = 'rgba(0, 0, 100, 0.5)' // Dark blue for nighttime (increased alpha slightly)
-const TWILIGHT_COLOR = 'rgba(255, 165, 0, 0.2)' // Orange for twilight (increased alpha slightly)
+const DAY_COLOR = 'rgba(255, 208, 100, 0.3)' // Light yellow for daytime (increased alpha slightly)
+const NIGHT_COLOR = 'rgba(0, 0, 100, 0.3)' // Dark blue for nighttime (increased alpha slightly)
+const TWILIGHT_COLOR = 'rgba(255, 165, 0, 0.3)' // Orange for twilight (increased alpha slightly)
 
 const DURATION_BLOCK_HEIGHT = 10 // Fixed height for duration blocks
 const SUN_ALTITUDE_MAX_HEIGHT = 100 // Max height for the sun altitude wave from its baseline
@@ -158,7 +158,7 @@ export class SunlightLayer implements Layer {
       const rectEnd = Math.min(canvasWidth, x2)
       const rectWidth = rectEnd - rectStart
       if (rectWidth > 0) {
-        ctx.fillRect(rectStart, rectY, rectWidth, DURATION_BLOCK_HEIGHT)
+        ctx.fillRect(rectStart, 0, rectWidth, ctx.canvas.height)
       }
     }
   }
