@@ -155,10 +155,10 @@ export default function GoogleMapPanel({
             { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3d3d3d' }] }
           ] : undefined}
         >
-          {/* Prevent overlay container from blocking pointer events over the map */
-            <div style={{ pointerEvents: 'none' }}>
-              <GoogleDeckGLOverlay layers={vizLayers} />
-            </div>
+          {/* Prevent overlay container from blocking pointer events over the map */}
+          <div style={{ pointerEvents: 'none' }}>
+            <GoogleDeckGLOverlay layers={vizLayers} />
+          </div>
           {/* Imperatively recenter/zoom when a target is provided */}
           <CameraUpdater targetPoint={targetPoint} onDone={onTargetProcessed} />
         </Map>
