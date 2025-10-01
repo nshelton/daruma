@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { APIProvider, Map, useMap, MapCameraChangedEvent } from '@vis.gl/react-google-maps'
+import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps'
 import { GoogleMapsOverlay as DeckOverlay, GoogleMapsOverlayProps } from '@deck.gl/google-maps'
 import { ArcPoint } from '../../../types'
 import { ScatterplotLayer } from '@deck.gl/layers'
@@ -54,33 +54,19 @@ export default function GoogleMapPanel({
 }: GoogleMapPanelProps): JSX.Element {
   const points = data.map(d => [d.lng, d.lat])
 
-  const [currentCenter, setCurrentCenter] = useState({ lat: 34.08, lng: -118.29 })
-  const [currentZoom, setCurrentZoom] = useState(10)
-  const [isProgrammaticViewSet, setIsProgrammaticViewSet] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(true)
   const [pointSize, setPointSize] = useState(5)
 
-  useEffect(() => {
-    if (targetPoint) {
-      setIsProgrammaticViewSet(true)
-      setCurrentCenter({ lat: targetPoint.lat, lng: targetPoint.lng })
-      setCurrentZoom(15)
-      if (onTargetProcessed) {
-        onTargetProcessed()
-      }
-      const timer = setTimeout(() => setIsProgrammaticViewSet(false), 300)
-      return (): void => clearTimeout(timer)
-    }
-  }, [targetPoint, onTargetProcessed])
-
-  const handleCenterChanged = (ev: MapCameraChangedEvent): void => {
-    if (isProgrammaticViewSet) return
-    setCurrentCenter({ lat: ev.detail.center.lat, lng: ev.detail.center.lng })
-  }
-
-  const handleZoomChanged = (ev: MapCameraChangedEvent): void => {
-    if (isProgrammaticViewSet) return
-    setCurrentZoom(ev.detail.zoom)
+  // Imperatively control camera to avoid locking the map with controlled props
+  function CameraUpdater({ targetPoint, onDone }: { targetPoint: ArcPoint | null; onDone?: () => void }): null {
+    const map = useMap()
+    useEffect(() => {
+      if (!map || !targetPoint) return
+      map.setZoom(15)
+      map.panTo({ lat: targetPoint.lat, lng: targetPoint.lng })
+      if (onDone) onDone()
+    }, [map, targetPoint, onDone])
+    return null
   }
 
   const vizLayers = React.useMemo(() => [
@@ -88,6 +74,8 @@ export default function GoogleMapPanel({
       id: 'scatter-plot',
       data: points,
       radiusScale: pointSize,
+      // Ensure Deck layer does not capture mouse so Google Map stays interactive
+      pickable: false,
       opacity: 1,
       radiusMinPixels: 1,
       getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0],
@@ -138,10 +126,6 @@ export default function GoogleMapPanel({
           </div>
         </div>
         <Map
-          center={currentCenter}
-          zoom={currentZoom}
-          onCenterChanged={handleCenterChanged}
-          onZoomChanged={handleZoomChanged}
           defaultCenter={{ lat: 34.08, lng: -118.29 }}
           defaultZoom={10}
           gestureHandling={'greedy'}
@@ -171,7 +155,12 @@ export default function GoogleMapPanel({
             { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3d3d3d' }] }
           ] : undefined}
         >
-          <GoogleDeckGLOverlay layers={vizLayers} />
+          {/* Prevent overlay container from blocking pointer events over the map */
+            <div style={{ pointerEvents: 'none' }}>
+              <GoogleDeckGLOverlay layers={vizLayers} />
+            </div>
+          {/* Imperatively recenter/zoom when a target is provided */}
+          <CameraUpdater targetPoint={targetPoint} onDone={onTargetProcessed} />
         </Map>
       </div>
     </APIProvider>
