@@ -9,7 +9,7 @@ const db_custom_events = new sqlite3.Database('parser/custom_events.db')
 // Cache for location data
 let allLocationsMasterCache: ArcPoint[] | null = null
 let dailyChunksCache: Map<string, ArcPoint[]> | null = null
-const MAX_POINTS_TO_RENDER = 1000
+const MAX_POINTS_TO_RENDER = 10000
 
 export function initializeAllLocationsCache(
   callback?: (err: Error | null, count?: number) => void,

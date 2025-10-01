@@ -40,8 +40,9 @@ export const FpsCounter: React.FC<FpsCounterProps> = ({ className = '', style = 
 
   const defaultStyle: React.CSSProperties = {
     position: 'absolute',
-    top: '10px',
-    right: '10px',
+    top: '7%',
+    left: '10px',
+    transform: 'translateY(-50%)',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     color: '#00ff00',
     padding: '4px 8px',

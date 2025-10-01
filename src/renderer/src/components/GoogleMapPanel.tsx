@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { APIProvider, Map, useMap, MapCameraChangedEvent } from '@vis.gl/react-google-maps'
 import { GoogleMapsOverlay as DeckOverlay, GoogleMapsOverlayProps } from '@deck.gl/google-maps'
 import { ArcPoint } from '../../../types'
@@ -22,20 +22,19 @@ function GoogleDeckGLOverlay({ layers }: GoogleDeckGLOverlayComponentProps): nul
   const [overlay, setOverlay] = useState<DeckOverlay | null>(null)
 
   useEffect(() => {
-    if (map && !overlay) {
+    if (map) {
       const newOverlayInstance = new DeckOverlay({
         layers,
       } as unknown as GoogleMapsOverlayProps)
       newOverlayInstance.setMap(map)
       setOverlay(newOverlayInstance)
-    }
 
-    return (): void => {
-      if (overlay) {
-        overlay.setMap(null)
+      return (): void => {
+        newOverlayInstance.setMap(null)
+        setOverlay(null)
       }
     }
-  }, [map, layers])
+  }, [map])
 
   useEffect(() => {
     if (overlay) {
@@ -58,6 +57,8 @@ export default function GoogleMapPanel({
   const [currentCenter, setCurrentCenter] = useState({ lat: 34.08, lng: -118.29 })
   const [currentZoom, setCurrentZoom] = useState(10)
   const [isProgrammaticViewSet, setIsProgrammaticViewSet] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(true)
+  const [pointSize, setPointSize] = useState(5)
 
   useEffect(() => {
     if (targetPoint) {
@@ -67,7 +68,7 @@ export default function GoogleMapPanel({
       if (onTargetProcessed) {
         onTargetProcessed()
       }
-      const timer = setTimeout(() => setIsProgrammaticViewSet(false), 50)
+      const timer = setTimeout(() => setIsProgrammaticViewSet(false), 300)
       return (): void => clearTimeout(timer)
     }
   }, [targetPoint, onTargetProcessed])
@@ -82,22 +83,60 @@ export default function GoogleMapPanel({
     setCurrentZoom(ev.detail.zoom)
   }
 
-  const vizLayers = [
+  const vizLayers = React.useMemo(() => [
     new ScatterplotLayer({
       id: 'scatter-plot',
-      data: points, // This should be the transformed points array
-      radiusScale: 5,
+      data: points,
+      radiusScale: pointSize,
       opacity: 1,
       radiusMinPixels: 1,
-      getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0], // d is now [lng, lat]
+      getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0],
       getFillColor: (): [number, number, number] => [255, 128, 0],
       getRadius: 1,
     }),
-  ]
+  ], [points, pointSize])
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-      <div style={{ height: height, width: width }}>
+      <div style={{ height: height, width: width, position: 'relative' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            zIndex: 1000,
+            background: 'rgba(255, 255, 255, 0.9)',
+            padding: '10px',
+            borderRadius: '5px',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            minWidth: '200px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Dark Mode:</label>
+            <input
+              type="checkbox"
+              checked={isDarkMode}
+              onChange={(e) => setIsDarkMode(e.target.checked)}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 'bold' }}>
+              Point Size: {pointSize}
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={pointSize}
+              onChange={(e) => setPointSize(Number(e.target.value))}
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
         <Map
           center={currentCenter}
           zoom={currentZoom}
@@ -107,6 +146,30 @@ export default function GoogleMapPanel({
           defaultZoom={10}
           gestureHandling={'greedy'}
           disableDefaultUI={false}
+          mapTypeId="roadmap"
+          styles={isDarkMode ? [
+            { elementType: 'geometry', stylers: [{ color: '#212121' }] },
+            { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+            { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+            { elementType: 'labels.text.stroke', stylers: [{ color: '#212121' }] },
+            { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#757575' }] },
+            { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+            { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+            { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
+            { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+            { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#181818' }] },
+            { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+            { featureType: 'poi.park', elementType: 'labels.text.stroke', stylers: [{ color: '#1b1b1b' }] },
+            { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#2c2c2c' }] },
+            { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#8a8a8a' }] },
+            { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#373737' }] },
+            { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3c3c3c' }] },
+            { featureType: 'road.highway.controlled_access', elementType: 'geometry', stylers: [{ color: '#4e4e4e' }] },
+            { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+            { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#000000' }] },
+            { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3d3d3d' }] }
+          ] : undefined}
         >
           <GoogleDeckGLOverlay layers={vizLayers} />
         </Map>
