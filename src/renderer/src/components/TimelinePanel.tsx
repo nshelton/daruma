@@ -9,7 +9,6 @@ import { TimeMarkersLayer } from './layers/TimeMarkersLayer'
 import { ArcPointLayer, ArcPointItem } from './layers/ArcPointLayer'
 import { EventLayer } from './layers/EventLayer'
 import { LocationMovementLayer } from './layers/LocationMovementLayer'
-import { LocationNameLayer } from './layers/LocationNameLayer'
 import { ArcPoint, Event, CustomEvent, PhotoPoint } from '../../../types'
 import { PhotoLayer } from './layers/PhotoLayer'
 import { CustomEventsLayer, CustomEventItem } from './layers/CustomEventsLayer'
@@ -75,7 +74,6 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       new EventLayer([]),
       new CustomEventsLayer(),
       new CurrentTimeIndicatorLayer(),
-      new LocationNameLayer(),
     ]
     return initial.map(l => Object.assign(Object.create(Object.getPrototypeOf(l)), l))
   })
@@ -91,7 +89,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       start = MIN_DATE_1991
       end = end + shift // Shift the end forward to maintain the same time window size
     }
-    
+
     return {
       start,
       end,
@@ -117,10 +115,6 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
           return layer
         }
         if (layer.id === 'locationMovement' && layer instanceof LocationMovementLayer) {
-          layer.setData(processedData)
-          return layer
-        }
-        if (layer.id === 'locationNames' && layer instanceof LocationNameLayer) {
           layer.setData(processedData)
           return layer
         }

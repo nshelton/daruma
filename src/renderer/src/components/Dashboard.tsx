@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { TimelinePanel } from './TimelinePanel'
-// import GoogleMapPanel from './GoogleMapPanel' // No longer used
-// import MapPanel from './MapPanel' // Remove this if it exists and is unused - REMOVED
 import { ArcPoint, Event, CustomEvent, PhotoPoint } from '../../../types'
 import { TimeRange as LayerTimeRange } from './layers/LayerTypes'
 import GoogleMapPanel from './GoogleMapPanel'

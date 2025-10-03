@@ -213,33 +213,33 @@ export class PhotoLayer implements Layer<PhotoItem> {
   }
 
   private loadImage(imgpath: string): void {
-    this.imageLoading.add(imgpath)
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    window.electron.ipcRenderer
-      .invoke('read-image', imgpath)
-      .then((dataUrl: string | null) => {
-        if (!dataUrl) return
-        const image = new Image()
-        image.onload = (): void => {
-          this.imageCache.set(imgpath, image)
-          this.touchCacheKey(imgpath)
-          // Evict least-recently-added if over capacity
-          while (this.cacheOrder.length > this.maxImageCache) {
-            const oldest = this.cacheOrder.shift()
-            if (oldest && oldest !== imgpath) {
-              this.imageCache.delete(oldest)
-            }
-          }
-          this.imageLoading.delete(imgpath)
-        }
-        image.onerror = (): void => {
-          this.imageLoading.delete(imgpath)
-        }
-        image.src = dataUrl
-      })
-      .catch(() => {
-        this.imageLoading.delete(imgpath)
-      })
+    // this.imageLoading.add(imgpath)
+    // // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    // window.electron.ipcRenderer
+    //   .invoke('read-image', imgpath)
+    //   .then((dataUrl: string | null) => {
+    //     if (!dataUrl) return
+    //     const image = new Image()
+    //     image.onload = (): void => {
+    //       this.imageCache.set(imgpath, image)
+    //       this.touchCacheKey(imgpath)
+    //       // Evict least-recently-added if over capacity
+    //       while (this.cacheOrder.length > this.maxImageCache) {
+    //         const oldest = this.cacheOrder.shift()
+    //         if (oldest && oldest !== imgpath) {
+    //           this.imageCache.delete(oldest)
+    //         }
+    //       }
+    //       this.imageLoading.delete(imgpath)
+    //     }
+    //     image.onerror = (): void => {
+    //       this.imageLoading.delete(imgpath)
+    //     }
+    //     image.src = dataUrl
+    //   })
+    //   .catch(() => {
+    //     this.imageLoading.delete(imgpath)
+    //   })
   }
 
   private touchCacheKey(key: string): void {
