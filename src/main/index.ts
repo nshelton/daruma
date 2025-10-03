@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import { join, extname } from 'path'
+import { promises as fs } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import {
   getAllEvents,
@@ -13,6 +14,29 @@ import {
 } from './db'
 import icon from '../../resources/icon.png?asset'
 import { Event, CustomEvent } from '../types'
+import { getAllPhotosInRange } from './db'
+
+// Register early so renderer can invoke immediately
+ipcMain.handle('read-image', async (_event, imgpath: string) => {
+  try {
+    if (typeof imgpath !== 'string' || imgpath.length === 0) return null
+    const data = await fs.readFile(imgpath)
+    const ext = extname(imgpath).toLowerCase()
+    const mime =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.webp'
+        ? 'image/webp'
+        : ext === '.gif'
+        ? 'image/gif'
+        : 'image/jpeg'
+    const base64 = data.toString('base64')
+    return `data:${mime};base64,${base64}`
+  } catch (err) {
+    console.error('[read-image] Failed to read image:', imgpath, err)
+    return null
+  }
+})
 
 function createWindow(): void {
   // Create the browser window.
@@ -55,7 +79,7 @@ app.whenReady().then(() => {
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  optimizer.watchWindowShortcuts(null) // Pass null if no mainWindow is available yet
+  optimizer.watchWindowShortcuts(null as unknown as BrowserWindow)
 
   // Initialize the location cache
   initializeAllLocationsCache((err, count) => {
@@ -148,6 +172,28 @@ app.whenReady().then(() => {
       event.reply('location-data', data)
     })
   })
+
+  ipcMain.on('get-photos-in-range', (event, timeRange: { start: number; end: number }) => {
+    if (!timeRange || typeof timeRange.start !== 'number' || typeof timeRange.end !== 'number') {
+      console.error('Invalid timeRange received for get-photos-in-range:', timeRange)
+      event.reply('photo-data', [])
+      return
+    }
+    console.log(
+      `get-photos-in-range: ${new Date(timeRange.start).toISOString()} to ${new Date(timeRange.end).toISOString()}`,
+    )
+    getAllPhotosInRange(timeRange.start, timeRange.end, (err, data) => {
+      if (err) {
+        console.error('Error fetching photos:', err)
+        event.reply('photo-data', [])
+        return
+      }
+      console.log(`[Photos][IPC] replying photo-data count: ${data.length}`)
+      event.reply('photo-data', data)
+    })
+  })
+
+  // removed; registered at module load above
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

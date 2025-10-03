@@ -19,9 +19,29 @@ const MetadataPanel: React.FC<MetadataPanelProps> = ({
   const [editableMetadata, setEditableMetadata] = useState<SelectedItem | null>(metadata)
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
+  const [isPhotoLoading, setIsPhotoLoading] = useState(false)
 
   useEffect(() => {
     setEditableMetadata(metadata)
+    // Load full image if a photo item is selected
+    const load = async (): Promise<void> => {
+      setPhotoDataUrl(null)
+      if (!metadata || metadata.layerId !== 'photos') return
+      const pathFromTopLevel = (metadata as unknown as { imgpath?: string }).imgpath
+      const pathFromMeta = (metadata.metadata?.imgpath as string | undefined) ?? undefined
+      const imgpath = pathFromTopLevel || pathFromMeta
+      if (!imgpath) return
+      try {
+        setIsPhotoLoading(true)
+        const url = await window.electron.ipcRenderer.invoke('read-image', imgpath)
+        if (url) setPhotoDataUrl(url as string)
+      } finally {
+        setIsPhotoLoading(false)
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    load()
   }, [metadata])
 
   const handleInputChange = (key: string, value: string): void => {
@@ -70,7 +90,7 @@ const MetadataPanel: React.FC<MetadataPanelProps> = ({
         top: '50vh',
         bottom: 0,
         right: 0,
-        width: isCollapsed ? '60px' : '200px',
+        width: isCollapsed ? '60px' : editableMetadata.layerId === 'photos' ? '360px' : '200px',
         backgroundColor: 'rgba(0,0,0,0.5)',
         color: '#fff',
         padding: '20px',
@@ -116,6 +136,19 @@ const MetadataPanel: React.FC<MetadataPanelProps> = ({
             ×
           </button>
         </div>
+
+        {editableMetadata.layerId === 'photos' && (
+          <div style={{ marginTop: '10px', marginBottom: '10px' }}>
+            {isPhotoLoading && <div style={{ color: '#999' }}>Loading image…</div>}
+            {!isPhotoLoading && photoDataUrl && (
+              <img
+                src={photoDataUrl}
+                alt="Selected photo"
+                style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '4px' }}
+              />
+            )}
+          </div>
+        )}
 
         {editableMetadata.layerId === 'customEvents' && (
           <button

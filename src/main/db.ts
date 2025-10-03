@@ -1,10 +1,42 @@
 import sqlite3 from 'sqlite3'
-import { Event, ArcPoint, CustomEvent } from '../types'
+import { Event, ArcPoint, CustomEvent, PhotoPoint } from '../types'
 
 // Open the database connection
 const db_events = new sqlite3.Database('parser/events.db')
 const db_locations = new sqlite3.Database('parser/locations.db')
 const db_custom_events = new sqlite3.Database('parser/custom_events.db')
+const db_photos = new sqlite3.Database('parser/photos.db')
+let photosTableName: 'photos' | 'locations' | null = null
+
+function resolvePhotosTableName(
+  callback: (err: Error | null, name?: 'photos' | 'locations') => void,
+): void {
+  if (photosTableName) {
+    callback(null, photosTableName)
+    return
+  }
+  db_photos.all<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type='table'",
+    (err, rows) => {
+      if (err) {
+        callback(err)
+        return
+      }
+      const names = rows.map(r => r.name.toLowerCase())
+      console.log('[Photos][DB] tables:', names)
+      if (names.includes('photos')) {
+        photosTableName = 'photos'
+      } else if (names.includes('locations')) {
+        photosTableName = 'locations'
+      } else {
+        console.warn('[Photos][DB] No photos table found (expected photos or locations)')
+        callback(new Error('No photos table'))
+        return
+      }
+      callback(null, photosTableName)
+    },
+  )
+}
 
 // Cache for location data
 let allLocationsMasterCache: ArcPoint[] | null = null
@@ -264,4 +296,65 @@ export function getAllLocationsInRange(
   console.timeEnd(jsProcessingTimerLabel)
   console.timeEnd(operationOverallTimerLabel)
   callback(null, processedLocations)
+}
+
+export function getAllPhotosInRange(
+  startTime: number,
+  endTime: number,
+  callback: (err: Error | null, photos: PhotoPoint[]) => void,
+): void {
+  interface PhotoRow {
+    id: number
+    time: string
+    lat: number | string
+    lng: number | string
+    camera?: string
+    imgpath?: string
+  }
+  const timer = `getAllPhotosInRange_DBQuery`
+  console.time(timer)
+  const startISO = new Date(startTime).toISOString()
+  const endISO = new Date(endTime).toISOString()
+  resolvePhotosTableName((resolveErr, tableName) => {
+    if (resolveErr || !tableName) {
+      console.timeEnd(timer)
+      callback(resolveErr || new Error('Photos table not found'), [])
+      return
+    }
+    // Photos were stored as ISO strings with timezone offsets; string WHERE comparisons can miss rows.
+    // Read all rows, then filter in JS for correctness.
+    const query = `SELECT id, time, lat, lng, camera, imgpath FROM ${tableName} ORDER BY time ASC`
+    db_photos.all<PhotoRow>(query, [], (err, rows) => {
+      console.timeEnd(timer)
+      if (err) {
+        callback(err, [])
+        return
+      }
+      console.log(`[Photos][DB] table: ${tableName}, read rows: ${rows.length}`)
+      const processedAll: PhotoPoint[] = rows.map(row => ({
+        id: row.id,
+        time: new Date(row.time),
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        camera: row.camera,
+        imgpath: row.imgpath,
+      }))
+      const filtered = processedAll.filter(p => {
+        const t = p.time.getTime()
+        return t >= startTime && t <= endTime
+      })
+      if (processedAll.length > 0) {
+        const minT = processedAll[0].time
+        const maxT = processedAll[processedAll.length - 1].time
+        console.log(
+          `[Photos][DB] processed: ${processedAll.length}, filtered in range [${new Date(
+            startTime,
+          ).toISOString()} - ${new Date(endTime).toISOString()}] => ${filtered.length}. DB span: ${minT.toISOString()} .. ${maxT.toISOString()}`,
+        )
+      } else {
+        console.log('[Photos][DB] processed: 0 rows')
+      }
+      callback(null, filtered)
+    })
+  })
 }

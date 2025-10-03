@@ -5,9 +5,9 @@ import { Layer, TimeRange } from './LayerTypes'
 const LATITUDE = 34.090097
 const LONGITUDE = -118.299888
 
-const DAY_COLOR = 'rgba(25, 55, 112, 0.3)'// Light yellow for daytime
-const NIGHT_COLOR = 'rgba(25, 25, 112, 0.3)' // Dark blue for nighttime
-const TWILIGHT_COLOR = 'rgba(255, 140, 0, 0.3)' // Orange for twilight
+const DAY_COLOR = 'rgba(53, 58, 102, 0.1)'// Light yellow for daytime
+const NIGHT_COLOR = 'rgba(38, 38, 116, 0.1)' // Dark blue for nighttime
+const TWILIGHT_COLOR = 'rgba(42, 68, 117, 0.1)' // Orange for twilight
 
 const DURATION_BLOCK_HEIGHT = 10 // Fixed height for duration blocks
 const SUN_ALTITUDE_MAX_HEIGHT = 100 // Max height for the sun altitude wave from its baseline
@@ -93,15 +93,15 @@ export class SunlightLayer implements Layer {
       const effectiveSunset = sunset
       const effectiveDusk = dusk
 
-      this.drawRect(
-        ctx,
-        dayStartTimestamp,
-        effectiveDawn,
-        NIGHT_COLOR,
-        timestampToX,
-        width,
-        Y_OFFSET,
-      )
+      // this.drawRect(
+      //   ctx,
+      //   dayStartTimestamp,
+      //   effectiveDawn,
+      //   NIGHT_COLOR,
+      //   timestampToX,
+      //   width,
+      //   Y_OFFSET,
+      // )
       this.drawRect(
         ctx,
         effectiveDawn,
@@ -130,7 +130,7 @@ export class SunlightLayer implements Layer {
         width,
         Y_OFFSET,
       )
-      this.drawRect(ctx, effectiveDusk, dayEndTimestamp, NIGHT_COLOR, timestampToX, width, Y_OFFSET)
+      // this.drawRect(ctx, effectiveDusk, dayEndTimestamp, NIGHT_COLOR, timestampToX, width, Y_OFFSET)
 
       dayIter = nextDayIter
     }

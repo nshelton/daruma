@@ -4,8 +4,11 @@
     "src/renderer/src/env.d.ts",
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.tsx",
-    "src/preload/*.d.ts"
-, "src/secrets.ts", "src/secrets.template.ts"  ],
+    "src/preload/*.d.ts",
+    "src/types.d.ts",
+    "src/secrets.ts",
+    "src/secrets.template.ts"
+  ],
   "compilerOptions": {
     "composite": true,
     "jsx": "react-jsx",

@@ -1,5 +1,5 @@
 import { Layer, TimeRange, LayerItem } from './LayerTypes'
-import { ArcPoint } from '../../../types' // Adjusted path for ArcPoint
+import { ArcPoint } from '../../../../types'
 
 // Define a specific item type for this layer, extending LayerItem
 export interface ArcPointItem extends LayerItem {
@@ -135,11 +135,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
       if (Object.prototype.hasOwnProperty.call(finalPoint, 'value')) {
         item.value = finalPoint.value
       }
-      if (Object.prototype.hasOwnProperty.call(finalPoint, 'metadata') && finalPoint.metadata) {
-        item.metadata = finalPoint.metadata
-      } else {
-        item.metadata = { originalTimestamp: finalPoint.time.getTime() }
-      }
+      item.metadata = { originalTimestamp: finalPoint.time.getTime() }
       return item
     }
     return null

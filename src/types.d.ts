@@ -22,3 +22,12 @@ export interface CustomEvent {
   y?: number
   height?: number
 }
+
+export interface PhotoPoint {
+  id?: number
+  time: Date
+  lat: number
+  lng: number
+  camera?: string
+  imgpath?: string
+}

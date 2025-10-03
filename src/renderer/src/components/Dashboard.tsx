@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { TimelinePanel } from './TimelinePanel'
 // import GoogleMapPanel from './GoogleMapPanel' // No longer used
 // import MapPanel from './MapPanel' // Remove this if it exists and is unused - REMOVED
-import { ArcPoint, Event, CustomEvent } from '../../../types'
+import { ArcPoint, Event, CustomEvent, PhotoPoint } from '../../../types'
 import { TimeRange as LayerTimeRange } from './layers/LayerTypes'
 import GoogleMapPanel from './GoogleMapPanel'
 import FpsCounter from './FpsCounter'
@@ -17,6 +17,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
   const [arcPoints, setArcPoints] = useState<ArcPoint[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [customEvents, setCustomEvents] = useState<CustomEvent[]>([])
+  const [photos, setPhotos] = useState<PhotoPoint[]>([])
   const [currentTimelineRange, setCurrentTimelineRange] = useState<LayerTimeRange | null>(null)
   const [selectedArcPointForMap, setSelectedArcPointForMap] = useState<ArcPoint | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -50,6 +51,13 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
     [],
   )
 
+  const handlePhotoData = useCallback((_event: unknown, receivedData: PhotoPoint[]): void => {
+    console.log('Dashboard received photo-data:', receivedData.length, 'photos')
+    const processed = receivedData.map(p => ({ ...p, time: new Date(p.time) }))
+    console.log('Dashboard processed photos length:', processed.length)
+    setPhotos(processed)
+  }, [])
+
   useEffect(() => {
     const locationListener = (_event: unknown, receivedData: ArcPoint[]): void =>
       handleLocationData(_event, receivedData)
@@ -62,6 +70,9 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
     const customEventListener = (_event: unknown, receivedData: CustomEvent[]): void =>
       handleCustomEventData(_event, receivedData)
     window.electron.ipcRenderer.on('custom-event-data', customEventListener)
+    const photoListener = (_event: unknown, receivedData: PhotoPoint[]): void =>
+      handlePhotoData(_event, receivedData)
+    window.electron.ipcRenderer.on('photo-data', photoListener)
 
     // Request events when component mounts
     window.electron.ipcRenderer.send('get-events')
@@ -86,11 +97,12 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
       window.electron.ipcRenderer.removeListener('location-data', locationListener)
       window.electron.ipcRenderer.removeListener('event-data', eventListener)
       window.electron.ipcRenderer.removeListener('custom-event-data', customEventListener)
+      window.electron.ipcRenderer.removeListener('photo-data', photoListener)
       window.electron.ipcRenderer.removeListener('custom-event-created', handleCustomEventCreated)
       window.electron.ipcRenderer.removeListener('custom-event-deleted', handleCustomEventDeleted)
       window.electron.ipcRenderer.removeListener('custom-event-updated', handleCustomEventUpdated)
     }
-  }, [handleLocationData, handleEventData, handleCustomEventData])
+  }, [handleLocationData, handleEventData, handleCustomEventData, handlePhotoData])
 
   // Effect for debounced fetching ArcPoint data via IPC when timeline range changes
   useEffect(() => {
@@ -103,6 +115,10 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
     debounceTimerRef.current = setTimeout(() => {
       console.log('Dashboard: Requesting locations for range:', currentTimelineRange)
       window.electron.ipcRenderer.send('get-locations-in-range', {
+        start: currentTimelineRange.start,
+        end: currentTimelineRange.end,
+      })
+      window.electron.ipcRenderer.send('get-photos-in-range', {
         start: currentTimelineRange.start,
         end: currentTimelineRange.end,
       })
@@ -153,6 +169,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
       <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
         <TimelinePanel
           arcPoints={arcPoints}
+          photos={photos}
           events={events}
           customEvents={customEvents}
           onVisibleTimeRangeChange={handleTimelineRangeChange}

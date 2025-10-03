@@ -10,7 +10,8 @@ import { ArcPointLayer, ArcPointItem } from './layers/ArcPointLayer'
 import { EventLayer } from './layers/EventLayer'
 import { LocationMovementLayer } from './layers/LocationMovementLayer'
 import { LocationNameLayer } from './layers/LocationNameLayer'
-import { ArcPoint, Event, CustomEvent } from '../../../types'
+import { ArcPoint, Event, CustomEvent, PhotoPoint } from '../../../types'
+import { PhotoLayer } from './layers/PhotoLayer'
 import { CustomEventsLayer, CustomEventItem } from './layers/CustomEventsLayer'
 
 const MS_PER_YEAR = 31536000000
@@ -22,6 +23,7 @@ interface TimelinePanelProps {
   width?: number
   height?: number
   arcPoints: ArcPoint[]
+  photos?: PhotoPoint[]
   events: Event[]
   customEvents: CustomEvent[]
   onVisibleTimeRangeChange: (timeRange: LayerTimeRange) => void
@@ -32,6 +34,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   width = window.innerWidth,
   height = window.innerHeight,
   arcPoints,
+  photos = [],
   events,
   customEvents,
   onVisibleTimeRangeChange,
@@ -67,6 +70,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       new SunlightLayer(),
       new MoonPhaseLayer(),
       new ArcPointLayer([]),
+      new PhotoLayer([]),
       new LocationMovementLayer([]),
       new EventLayer([]),
       new CustomEventsLayer(),
@@ -80,7 +84,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     const timeWindow = MS_PER_YEAR / zoom
     let start = centerTimestamp - timeWindow / 2
     let end = centerTimestamp + timeWindow / 2
-    
+
     // Ensure the timeline never shows anything before 1991
     if (start < MIN_DATE_1991) {
       const shift = MIN_DATE_1991 - start
@@ -124,6 +128,23 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       }),
     )
   }, [arcPoints])
+
+  useEffect(() => {
+    const processedPhotos = photos.map(p => ({
+      ...p,
+      time: new Date(p.time),
+    }))
+    console.log('TimelinePanel setting PhotoLayer data count:', processedPhotos.length)
+    setLayers(prevLayers =>
+      prevLayers.map(layer => {
+        if (layer.id === 'photos' && layer instanceof PhotoLayer) {
+          layer.setData(processedPhotos)
+          return layer
+        }
+        return layer
+      }),
+    )
+  }, [photos])
 
   useEffect(() => {
     // Don't update layer data from database if currently dragging
@@ -380,9 +401,25 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       const zoomFactor = 1.1
       const newZoom =
         e.deltaY > 0 ? Math.max(MIN_ZOOM, zoom / zoomFactor) : Math.min(MAX_ZOOM, zoom * zoomFactor)
+
+      const canvas = canvasRef.current
+      if (!canvas || width === 0) {
+        setZoom(newZoom)
+        return
+      }
+      const rect = canvas.getBoundingClientRect()
+      const canvasX = e.clientX - rect.left
+      const ratio = Math.min(1, Math.max(0, canvasX / width))
+
+      const { start, end } = getVisibleTimeRange()
+      const timeWindowNew = MS_PER_YEAR / newZoom
+      const timeAtMouse = start + ratio * (end - start)
+      const newCenter = timeAtMouse + (0.5 - ratio) * timeWindowNew
+
+      setCenterTimestamp(newCenter)
       setZoom(newZoom)
     },
-    [zoom, setZoom],
+    [zoom, setZoom, setCenterTimestamp, width, getVisibleTimeRange],
   )
 
   useEffect((): (() => void) => {
@@ -668,7 +705,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       return 'ns-resize'
     }
     if (hoveredItem && hoveredItem.part === 'body') {
-      return 'move'
+      return 'pointer'
     }
     if (isDraggingCursor) {
       return 'ew-resize'

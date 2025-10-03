@@ -79,7 +79,7 @@ export default function GoogleMapPanel({
       opacity: 1,
       radiusMinPixels: 1,
       getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0],
-      getFillColor: (): [number, number, number] => [255, 128, 0],
+      getFillColor: (): [number, number, number] => [128, 255, 128],
       getRadius: 1,
     }),
   ], [points, pointSize])
