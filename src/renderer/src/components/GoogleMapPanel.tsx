@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react'
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps'
 import { GoogleMapsOverlay as DeckOverlay, GoogleMapsOverlayProps } from '@deck.gl/google-maps'
-import { ArcPoint } from '../../../types'
+import { ArcPoint, PhotoPoint } from '../../../types'
 import { ScatterplotLayer } from '@deck.gl/layers'
+import { COORDINATE_SYSTEM } from '@deck.gl/core'
 import { GOOGLE_MAPS_API_KEY } from './secrets'
 
 interface GoogleMapPanelProps {
   data: ArcPoint[]
+  photos?: PhotoPoint[]
   width?: string | number
   height?: string | number
   targetPoint?: ArcPoint | null
   onTargetProcessed?: () => void
+  onArcPointClick?: (point: ArcPoint) => void
+  onPhotoPointClick?: (point: PhotoPoint) => void
+  clickToleranceMeters?: number
 }
 
 interface GoogleDeckGLOverlayComponentProps {
-  layers: ScatterplotLayer<number[]>[] // Made layer type more specific
+  layers: any[]
 }
 
 function GoogleDeckGLOverlay({ layers }: GoogleDeckGLOverlayComponentProps): null {
@@ -34,6 +39,7 @@ function GoogleDeckGLOverlay({ layers }: GoogleDeckGLOverlayComponentProps): nul
         setOverlay(null)
       }
     }
+    return undefined
   }, [map])
 
   useEffect(() => {
@@ -47,18 +53,29 @@ function GoogleDeckGLOverlay({ layers }: GoogleDeckGLOverlayComponentProps): nul
 
 export default function GoogleMapPanel({
   data,
+  photos = [],
   width = '100%',
   height = '500px',
   targetPoint = null,
   onTargetProcessed,
+  onArcPointClick,
+  onPhotoPointClick,
+  clickToleranceMeters = 50,
 }: GoogleMapPanelProps): JSX.Element {
-  const points = data.map(d => [d.lng, d.lat])
+  const arcData = data
+  const photoData = photos
 
   const [isDarkMode, setIsDarkMode] = useState(true)
   const [pointSize, setPointSize] = useState(5)
 
   // Imperatively control camera to avoid locking the map with controlled props
-  function CameraUpdater({ targetPoint, onDone }: { targetPoint: ArcPoint | null; onDone?: () => void }): null {
+  function CameraUpdater({
+    targetPoint,
+    onDone,
+  }: {
+    targetPoint: ArcPoint | null
+    onDone?: () => void
+  }): null {
     const map = useMap()
     useEffect(() => {
       if (!map || !targetPoint) return
@@ -70,19 +87,38 @@ export default function GoogleMapPanel({
   }
 
   const vizLayers = React.useMemo(() => [
-    new ScatterplotLayer({
-      id: 'scatter-plot',
-      data: points,
-      radiusScale: pointSize,
+    new ScatterplotLayer<ArcPoint>({
+      id: 'arc-points',
+      data: arcData,
+      coordinateSystem: COORDINATE_SYSTEM.LNGLAT,
+      radiusUnits: 'pixels',
+      getRadius: pointSize,
       // Ensure Deck layer does not capture mouse so Google Map stays interactive
-      pickable: false,
+      pickable: true,
       opacity: 1,
-      radiusMinPixels: 1,
-      getPosition: (d: number[]): [number, number, number] => [d[0], d[1], 0],
+      getPosition: (d: ArcPoint): [number, number] => [d.lng, d.lat],
       getFillColor: (): [number, number, number] => [128, 255, 128],
-      getRadius: 1,
+      onClick: (info: unknown): void => {
+        const picked = (info as { object?: unknown })?.object as ArcPoint | undefined
+        if (picked && onArcPointClick) onArcPointClick(picked)
+      },
     }),
-  ], [points, pointSize])
+    new ScatterplotLayer<PhotoPoint>({
+      id: 'photo-points',
+      data: photoData,
+      coordinateSystem: COORDINATE_SYSTEM.LNGLAT,
+      radiusUnits: 'pixels',
+      getRadius: pointSize,
+      pickable: true,
+      opacity: 1,
+      getPosition: (d: PhotoPoint): [number, number] => [d.lng, d.lat],
+      getFillColor: (): [number, number, number] => [255, 128, 255],
+      onClick: (info: unknown): void => {
+        const picked = (info as { object?: unknown })?.object as PhotoPoint | undefined
+        if (picked && onPhotoPointClick) onPhotoPointClick(picked)
+      },
+    }),
+  ], [arcData, photoData, pointSize, onArcPointClick, onPhotoPointClick])
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
@@ -108,7 +144,7 @@ export default function GoogleMapPanel({
             <input
               type="checkbox"
               checked={isDarkMode}
-              onChange={(e) => setIsDarkMode(e.target.checked)}
+              onChange={e => setIsDarkMode(e.target.checked)}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -120,7 +156,7 @@ export default function GoogleMapPanel({
               min="1"
               max="20"
               value={pointSize}
-              onChange={(e) => setPointSize(Number(e.target.value))}
+              onChange={e => setPointSize(Number(e.target.value))}
               style={{ width: '100%' }}
             />
           </div>

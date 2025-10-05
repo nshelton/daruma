@@ -18,7 +18,11 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
   const [photos, setPhotos] = useState<PhotoPoint[]>([])
   const [currentTimelineRange, setCurrentTimelineRange] = useState<LayerTimeRange | null>(null)
   const [selectedArcPointForMap, setSelectedArcPointForMap] = useState<ArcPoint | null>(null)
+  const [timelineFocusTime, setTimelineFocusTime] = useState<number | null>(null)
+  const [isTimelineFocusing, setIsTimelineFocusing] = useState(false)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false)
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false)
 
   // IPC listener for location data
   const handleLocationData = useCallback((_event: unknown, receivedData: ArcPoint[]): void => {
@@ -29,6 +33,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
       time: new Date(p.time), // Ensure time is a Date object
     }))
     setArcPoints(processedData)
+    setIsLoadingLocations(false)
   }, [])
 
   // IPC listener for event data
@@ -54,6 +59,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
     const processed = receivedData.map(p => ({ ...p, time: new Date(p.time) }))
     console.log('Dashboard processed photos length:', processed.length)
     setPhotos(processed)
+    setIsLoadingPhotos(false)
   }, [])
 
   useEffect(() => {
@@ -102,24 +108,31 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
     }
   }, [handleLocationData, handleEventData, handleCustomEventData, handlePhotoData])
 
-  // Effect for debounced fetching ArcPoint data via IPC when timeline range changes
+  const requestDataForRange = useCallback((range: LayerTimeRange): void => {
+    console.log('Dashboard: Requesting data for range:', range)
+    setIsLoadingLocations(true)
+    window.electron.ipcRenderer.send('get-locations-in-range', {
+      start: range.start,
+      end: range.end,
+    })
+    setIsLoadingPhotos(true)
+    window.electron.ipcRenderer.send('get-photos-in-range', {
+      start: range.start,
+      end: range.end,
+    })
+  }, [])
+
+  // Effect for debounced fetching ArcPoint/Photo data via IPC when timeline range changes
   useEffect(() => {
     if (!currentTimelineRange) return
+    if (isTimelineFocusing) return // suppress repeated fetches during focus animation
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      console.log('Dashboard: Requesting locations for range:', currentTimelineRange)
-      window.electron.ipcRenderer.send('get-locations-in-range', {
-        start: currentTimelineRange.start,
-        end: currentTimelineRange.end,
-      })
-      window.electron.ipcRenderer.send('get-photos-in-range', {
-        start: currentTimelineRange.start,
-        end: currentTimelineRange.end,
-      })
+      requestDataForRange(currentTimelineRange)
     }, DEBOUNCE_DELAY)
 
     return (): void => {
@@ -127,15 +140,29 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [currentTimelineRange])
+  }, [currentTimelineRange, isTimelineFocusing, requestDataForRange])
 
   const handleTimelineRangeChange = useCallback((timeRange: LayerTimeRange): void => {
     setCurrentTimelineRange(timeRange)
   }, [])
 
-  const handleArcPointSelect = useCallback((point: ArcPoint): void => {
-    console.log('Dashboard: ArcPoint selected for map:', point)
+  // Map click -> set focus on timeline (avoid loops by using a separate handler)
+  const handleArcPointClickOnMap = useCallback((point: ArcPoint): void => {
+    console.log('Dashboard: ArcPoint clicked on map:', point)
     setSelectedArcPointForMap(point)
+    setIsTimelineFocusing(true)
+    setTimelineFocusTime(new Date(point.time).getTime())
+  }, [])
+
+  // Timeline selection should not set focusTime again (prevents feedback loop)
+  const handleArcPointSelectFromTimeline = useCallback((point: ArcPoint): void => {
+    console.log('Dashboard: ArcPoint selected in timeline:', point)
+    setSelectedArcPointForMap(point)
+  }, [])
+
+  const handlePhotoPointClick = useCallback((point: PhotoPoint): void => {
+    console.log('Dashboard: PhotoPoint clicked on map:', point)
+    // Placeholder: wire to whatever action you want (open preview, center map, etc.)
   }, [])
 
   const handleMapTargetProcessed = useCallback((): void => {
@@ -147,8 +174,24 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
   const panelHeight = window.innerHeight / 2
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}
+    >
       <FpsCounter />
+      {(isLoadingLocations || isLoadingPhotos) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 4,
+            background: 'linear-gradient(90deg, #0ea5e9 0%, #22d3ee 50%, #34d399 100%)',
+            opacity: 0.9,
+            zIndex: 1000,
+          }}
+        />
+      )}
       <div
         style={{
           flex: '1 1 auto',
@@ -158,10 +201,13 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
       >
         <GoogleMapPanel
           data={arcPoints}
+          photos={photos}
           width={panelWidth}
           height={panelHeight}
           targetPoint={selectedArcPointForMap}
           onTargetProcessed={handleMapTargetProcessed}
+          onArcPointClick={handleArcPointClickOnMap}
+          onPhotoPointClick={handlePhotoPointClick}
         />
       </div>
       <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
@@ -171,7 +217,13 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
           events={events}
           customEvents={customEvents}
           onVisibleTimeRangeChange={handleTimelineRangeChange}
-          onArcPointSelect={handleArcPointSelect}
+          onArcPointSelect={handleArcPointSelectFromTimeline}
+          focusTime={timelineFocusTime}
+          onFocusTimeApplied={() => {
+            setTimelineFocusTime(null)
+            setIsTimelineFocusing(false)
+            if (currentTimelineRange) requestDataForRange(currentTimelineRange)
+          }}
           width={panelWidth}
           height={panelHeight}
         />

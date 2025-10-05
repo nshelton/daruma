@@ -27,6 +27,10 @@ interface TimelinePanelProps {
   customEvents: CustomEvent[]
   onVisibleTimeRangeChange: (timeRange: LayerTimeRange) => void
   onArcPointSelect?: (point: ArcPoint) => void
+  // When provided, the timeline will animate to this time and move the draggable cursor
+  focusTime?: number | null
+  // Called after the timeline finishes animating to focusTime
+  onFocusTimeApplied?: () => void
 }
 
 export const TimelinePanel: React.FC<TimelinePanelProps> = ({
@@ -38,9 +42,11 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   customEvents,
   onVisibleTimeRangeChange,
   onArcPointSelect,
+  focusTime = null,
+  onFocusTimeApplied,
 }): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(4)
   const [centerTimestamp, setCenterTimestamp] = useState(Math.max(Date.now(), MIN_DATE_1991))
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouseX, setLastMouseX] = useState(0)
@@ -77,6 +83,35 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     ]
     return initial.map(l => Object.assign(Object.create(Object.getPrototypeOf(l)), l))
   })
+
+  // Smoothly animate to an externally requested focus time and move the draggable cursor
+  useEffect(() => {
+    if (focusTime === null || focusTime === undefined) return
+    const target = Math.max(focusTime, MIN_DATE_1991)
+    const startCenter = centerTimestamp
+    const duration = 600 // ms
+    let raf = 0
+    const startAt = performance.now()
+
+    const step = (now: number): void => {
+      const t = Math.min(1, (now - startAt) / duration)
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3)
+      const nextCenter = startCenter + (target - startCenter) * eased
+      setCenterTimestamp(nextCenter)
+      if (t < 1) {
+        raf = requestAnimationFrame(step)
+      } else {
+        setDraggableCursorTime(target)
+        if (onFocusTimeApplied) onFocusTimeApplied()
+      }
+    }
+    raf = requestAnimationFrame(step)
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTime])
 
   const getVisibleTimeRange = useCallback((): LayerTimeRange => {
     const timeWindow = MS_PER_YEAR / zoom
