@@ -31,6 +31,8 @@ interface TimelinePanelProps {
   focusTime?: number | null
   // Called after the timeline finishes animating to focusTime
   onFocusTimeApplied?: () => void
+  // Current Google Map bounds to dim timeline points out of view
+  visibleMapBounds?: { north: number; east: number; south: number; west: number } | null
 }
 
 export const TimelinePanel: React.FC<TimelinePanelProps> = ({
@@ -44,6 +46,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
   onArcPointSelect,
   focusTime = null,
   onFocusTimeApplied,
+  visibleMapBounds = null,
 }): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [zoom, setZoom] = useState(4)
@@ -68,6 +71,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
 
   const [draggableCursorTime, setDraggableCursorTime] = useState<number | null>(null) // Timestamp for the draggable cursor
   const [isDraggingCursor, setIsDraggingCursor] = useState(false) // Is the cursor being dragged?
+  const [isHoveringArcPoint, setIsHoveringArcPoint] = useState(false)
 
   const [layers, setLayers] = useState<Layer[]>(() => {
     const initial: Layer[] = [
@@ -107,10 +111,9 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       }
     }
     raf = requestAnimationFrame(step)
-    return () => {
+    return (): void => {
       if (raf) cancelAnimationFrame(raf)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTime])
 
   const getVisibleTimeRange = useCallback((): LayerTimeRange => {
@@ -174,6 +177,17 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       }),
     )
   }, [photos])
+
+  useEffect(() => {
+    // Apply map bounds to ArcPointLayer for dimming
+    setLayers(prev => prev.map(layer => {
+      if (layer.id === 'arcPoints' && layer instanceof ArcPointLayer) {
+        layer.setVisibleMapBounds(visibleMapBounds || null)
+        return layer
+      }
+      return layer
+    }))
+  }, [visibleMapBounds])
 
   useEffect(() => {
     // Don't update layer data from database if currently dragging
@@ -532,6 +546,7 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
       const visibleTimeRange = getVisibleTimeRange()
 
       if (draggedItem && selectedCustomEvent) {
+        setIsHoveringArcPoint(false)
         const customEventsLayer = layers.find(
           l => l.id === 'customEvents' && l instanceof CustomEventsLayer,
         ) as CustomEventsLayer
@@ -621,9 +636,11 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
           }
         }
       } else if (isDraggingCursor) {
+        setIsHoveringArcPoint(false)
         const time = xToTimestamp(event.clientX - rect.left)
         setDraggableCursorTime(time)
       } else if (isDragging) {
+        setIsHoveringArcPoint(false)
         const deltaX = event.clientX - lastMouseX
         if (width === 0 || zoom === 0) return
         const timeDelta = (deltaX / width) * (MS_PER_YEAR / zoom)
@@ -665,8 +682,26 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
               setHoveredItem(null)
             }
           }
+          // When interacting with custom events, do not consider arcpoint hover
+          setIsHoveringArcPoint(false)
         } else {
           setHoveredItem(null)
+          // Determine arc point hover for cursor feedback
+          const arcPointLayer = layers.find(
+            l => l.id === 'arcPoints' && l instanceof ArcPointLayer,
+          ) as ArcPointLayer | undefined
+          if (arcPointLayer) {
+            const arcItem = arcPointLayer.findClosestItem(
+              canvasX,
+              canvasY,
+              visibleTimeRange,
+              timestampToX,
+              height,
+            )
+            setIsHoveringArcPoint(Boolean(arcItem))
+          } else {
+            setIsHoveringArcPoint(false)
+          }
         }
       }
     },
@@ -742,8 +777,11 @@ export const TimelinePanel: React.FC<TimelinePanelProps> = ({
     if (isDragging) {
       return 'grabbing'
     }
+    if (isHoveringArcPoint) {
+      return 'pointer'
+    }
     return 'grab'
-  }, [hoveredItem, isDraggingCursor, isDragging])
+  }, [hoveredItem, isDraggingCursor, isDragging, isHoveringArcPoint])
 
   return (
     <div

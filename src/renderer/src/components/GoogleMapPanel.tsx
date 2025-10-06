@@ -16,10 +16,11 @@ interface GoogleMapPanelProps {
   onArcPointClick?: (point: ArcPoint) => void
   onPhotoPointClick?: (point: PhotoPoint) => void
   clickToleranceMeters?: number
+  onBoundsChange?: (bounds: { north: number; east: number; south: number; west: number }) => void
 }
 
 interface GoogleDeckGLOverlayComponentProps {
-  layers: any[]
+  layers: unknown[]
 }
 
 function GoogleDeckGLOverlay({ layers }: GoogleDeckGLOverlayComponentProps): null {
@@ -60,7 +61,8 @@ export default function GoogleMapPanel({
   onTargetProcessed,
   onArcPointClick,
   onPhotoPointClick,
-  clickToleranceMeters = 50,
+  clickToleranceMeters: _clickToleranceMeters = 50,
+  onBoundsChange,
 }: GoogleMapPanelProps): JSX.Element {
   const arcData = data
   const photoData = photos
@@ -69,13 +71,7 @@ export default function GoogleMapPanel({
   const [pointSize, setPointSize] = useState(5)
 
   // Imperatively control camera to avoid locking the map with controlled props
-  function CameraUpdater({
-    targetPoint,
-    onDone,
-  }: {
-    targetPoint: ArcPoint | null
-    onDone?: () => void
-  }): null {
+  function CameraUpdater({ targetPoint, onDone }: { targetPoint: ArcPoint | null; onDone?: () => void }): null {
     const map = useMap()
     useEffect(() => {
       if (!map || !targetPoint) return
@@ -83,6 +79,48 @@ export default function GoogleMapPanel({
       map.panTo({ lat: targetPoint.lat, lng: targetPoint.lng })
       if (onDone) onDone()
     }, [map, targetPoint, onDone])
+    return null
+  }
+
+  function BoundsReporter({ onBoundsChange }: { onBoundsChange?: (b: { north: number; east: number; south: number; west: number }) => void }): null {
+    const map = useMap()
+    const lastSentBounds = React.useRef<{ north: number; east: number; south: number; west: number } | null>(null)
+    const throttleRef = React.useRef<number | null>(null)
+    useEffect(() => {
+      if (!map || !onBoundsChange) return
+      const round = (n: number): number => Math.round(n * 1e5) / 1e5 // 5 decimal places ~ 1m
+      const maybeSend = (): void => {
+        const raw = map.getBounds()?.toJSON()
+        if (!raw) return
+        const next = { north: round(raw.north), south: round(raw.south), east: round(raw.east), west: round(raw.west) }
+        const prev = lastSentBounds.current
+        const changed = !prev || prev.north !== next.north || prev.south !== next.south || prev.east !== next.east || prev.west !== next.west
+        if (changed) {
+          lastSentBounds.current = next
+          onBoundsChange(next)
+        }
+      }
+      const schedule = (): void => {
+        if (throttleRef.current) return
+        throttleRef.current = window.setTimeout(() => {
+          throttleRef.current = null
+          maybeSend()
+        }, 100)
+      }
+      // Send once on mount
+      maybeSend()
+      const idleListener = google.maps.event.addListener(map, 'idle', maybeSend)
+      // Avoid high-frequency updates; only schedule during changes
+      const boundsListener = google.maps.event.addListener(map, 'bounds_changed', schedule)
+      return (): void => {
+        idleListener.remove()
+        boundsListener.remove()
+        if (throttleRef.current) {
+          window.clearTimeout(throttleRef.current)
+          throttleRef.current = null
+        }
+      }
+    }, [map, onBoundsChange])
     return null
   }
 
@@ -169,14 +207,15 @@ export default function GoogleMapPanel({
           mapTypeId="roadmap"
           styles={isDarkMode ? [
             { elementType: 'geometry', stylers: [{ color: '#212121' }] },
-            { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-            { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+            { elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
+            { elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
             { elementType: 'labels.text.stroke', stylers: [{ color: '#212121' }] },
             { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#757575' }] },
             { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
             { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
             { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
-            { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+            { featureType: 'poi', elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
+            { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
             { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#181818' }] },
             { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
             { featureType: 'poi.park', elementType: 'labels.text.stroke', stylers: [{ color: '#1b1b1b' }] },
@@ -195,6 +234,8 @@ export default function GoogleMapPanel({
           <div style={{ pointerEvents: 'none' }}>
             <GoogleDeckGLOverlay layers={vizLayers} />
           </div>
+          {/* Report bounds to parent for timeline dimming */}
+          <BoundsReporter onBoundsChange={onBoundsChange} />
           {/* Imperatively recenter/zoom when a target is provided */}
           <CameraUpdater targetPoint={targetPoint} onDone={onTargetProcessed} />
         </Map>

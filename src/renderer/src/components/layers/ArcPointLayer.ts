@@ -9,13 +9,16 @@ export interface ArcPointItem extends LayerItem {
   // other properties from ArcPoint can be included in metadata
 }
 
+export type MapBounds = { north: number; east: number; south: number; west: number }
+
 export class ArcPointLayer implements Layer<ArcPointItem> {
   id = 'arcPoints'
   name = 'Arc Points'
   isVisible = true
-  zIndex = 1 // Draw above sun/moon but below time markers/current time indicator
+  zIndex = 6 // Draw above sun/moon and movement/photos, below current time indicator
 
   private arcData: ArcPoint[]
+  private visibleMapBounds: MapBounds | null = null
   // To re-enable selection highlighting, selectedItem would be stored here
   // private selectedItem: SelectedItem | null = null;
 
@@ -25,6 +28,10 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
 
   public setData(data: ArcPoint[]): void {
     this.arcData = data
+  }
+
+  public setVisibleMapBounds(bounds: MapBounds | null): void {
+    this.visibleMapBounds = bounds
   }
 
   // public setSelectedItem(item: SelectedItem | null): void { // For re-enabling selection
@@ -65,17 +72,31 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
       const x = timestampToX(pointTimestamp)
       const y = height / 2
 
+      // Determine if point is within current Google Map bounds (if provided)
+      let inBounds = true
+      if (this.visibleMapBounds) {
+        const { north, east, south, west } = this.visibleMapBounds
+        const inLat = point.lat >= south && point.lat <= north
+        // Handle bounds that cross the antimeridian (west > east)
+        const crossesAntimeridian = west > east
+        const inLng = crossesAntimeridian
+          ? point.lng >= west || point.lng <= east
+          : point.lng >= west && point.lng <= east
+        inBounds = inLat && inLng
+      }
+
       // Highlighting logic would use this.selectedItem if it were stored in the class
       const isSelected = false // Placeholder
-      // const isSelected =
-      //   this.selectedItem &&
-      //   this.selectedItem.layerId === this.id &&
-      //   this.selectedItem.id === pointTimestamp
 
       ctx.beginPath()
       const radius = isSelected ? 7 : 5
       ctx.arc(x, y, radius, 0, Math.PI * 2)
-      ctx.fillStyle = isSelected ? 'rgba(255, 105, 180, 1)' : 'rgba(152, 251, 152, 0.8)'
+      // Visible points: green; out-of-view points: greyed out
+      if (inBounds) {
+        ctx.fillStyle = isSelected ? 'rgba(255, 105, 180, 0.95)' : 'rgba(152, 251, 152, 0.9)'
+      } else {
+        ctx.fillStyle = 'rgba(160, 160, 160, 0.45)'
+      }
       ctx.fill()
     })
     ctx.restore()
@@ -100,7 +121,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
 
     if (visibleData.length === 0) return null
 
-    const maxDistance = 15
+    const maxDistance = 20
     let foundPoint: ArcPoint | null = null
     let minDistance = Infinity
 
@@ -133,7 +154,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
       }
       // Check for optional properties before assigning
       if (Object.prototype.hasOwnProperty.call(finalPoint, 'value')) {
-        item.value = finalPoint.value
+        item.value = (finalPoint as unknown as { value: unknown }).value
       }
       item.metadata = { originalTimestamp: finalPoint.time.getTime() }
       return item
@@ -176,7 +197,7 @@ export class ArcPointLayer implements Layer<ArcPointItem> {
       }
       // Include .value if it exists on closestPoint, similar to findClosestItem
       if (Object.prototype.hasOwnProperty.call(closestPoint, 'value')) {
-        item.value = closestPoint.value
+        item.value = (closestPoint as unknown as { value: unknown }).value
       }
       return item
     }

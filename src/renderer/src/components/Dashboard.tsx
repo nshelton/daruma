@@ -20,6 +20,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
   const [selectedArcPointForMap, setSelectedArcPointForMap] = useState<ArcPoint | null>(null)
   const [timelineFocusTime, setTimelineFocusTime] = useState<number | null>(null)
   const [isTimelineFocusing, setIsTimelineFocusing] = useState(false)
+  const [mapBounds, setMapBounds] = useState<{ north: number; east: number; south: number; west: number } | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false)
@@ -208,6 +209,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
           onTargetProcessed={handleMapTargetProcessed}
           onArcPointClick={handleArcPointClickOnMap}
           onPhotoPointClick={handlePhotoPointClick}
+          onBoundsChange={setMapBounds}
         />
       </div>
       <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
@@ -224,6 +226,7 @@ export const Dashboard: React.FC<DashboardProps> = (): JSX.Element => {
             setIsTimelineFocusing(false)
             if (currentTimelineRange) requestDataForRange(currentTimelineRange)
           }}
+          visibleMapBounds={mapBounds}
           width={panelWidth}
           height={panelHeight}
         />
